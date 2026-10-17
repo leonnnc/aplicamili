@@ -677,6 +677,36 @@ a.btn { text-decoration: none; }
   color: var(--brand-dark);
 }
 
+/* Bloque de pago del resumen lateral */
+.pago-box {
+  display: grid;
+  gap: 10px;
+  padding: 12px 13px 13px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.pago-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pago-head h3 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.pago-box .field { margin: 0; }
+.pago-totales {
+  padding: 8px 0 0;
+  border-bottom: 0;
+  gap: 6px;
+}
+.pago-totales dd { font-weight: 700; }
+
 .recojo-box {
   display: flex;
   gap: 10px;

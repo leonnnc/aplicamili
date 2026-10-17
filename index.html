@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
   <title>LavaMili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261016i" />
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261017c" />
 </head>
 <body>
 
@@ -219,10 +219,6 @@
                   <p class="hint" id="recojoHint"></p>
                 </div>
                 <div class="field">
-                  <label for="formaPago">Forma de pago</label>
-                  <select id="formaPago"></select>
-                </div>
-                <div class="field">
                   <label for="descuento">Descuento (S/)</label>
                   <input id="descuento" type="number" min="0" step="0.10" value="0" />
                 </div>
@@ -276,6 +272,34 @@
               <div class="total-box">
                 <span>Total a pagar</span>
                 <strong id="sumTotal">S/ 0.00</strong>
+              </div>
+
+              <div class="pago-box">
+                <div class="pago-head">
+                  <h3>Pago</h3>
+                  <span class="estado neutral" id="pagoEstadoChip">Por cobrar</span>
+                </div>
+
+                <div class="field">
+                  <label for="estadoPago">¿Se concretó el pago?</label>
+                  <select id="estadoPago"></select>
+                </div>
+
+                <div class="field">
+                  <label for="formaPago">Tipo de pago</label>
+                  <select id="formaPago"></select>
+                </div>
+
+                <div class="field oculto" id="campoAdelanto">
+                  <label for="montoAdelanto">Monto del adelanto (S/)</label>
+                  <input id="montoAdelanto" type="number" min="0" step="0.50" value="0" inputmode="decimal" />
+                  <p class="hint" id="adelantoHint">El saldo restante queda por cobrar.</p>
+                </div>
+
+                <dl class="resumen-lista pago-totales">
+                  <div><dt>Pagado ahora</dt><dd id="sumPagado">S/ 0.00</dd></div>
+                  <div><dt>Saldo pendiente</dt><dd id="sumSaldo">S/ 0.00</dd></div>
+                </dl>
               </div>
 
               <div class="recojo-box" id="recojoBox"></div>
@@ -469,16 +493,16 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261017b"></script>
-  <script src="assets/js/firebase-config.js?v=20261017b"></script>
-  <script src="assets/js/store.js?v=20261017b"></script>
+  <script src="assets/js/config.js?v=20261017c"></script>
+  <script src="assets/js/firebase-config.js?v=20261017c"></script>
+  <script src="assets/js/store.js?v=20261017c"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261017b"></script>
-  <script defer src="assets/js/app.js?v=20261017b"></script>
+  <script defer src="assets/js/sync.js?v=20261017c"></script>
+  <script defer src="assets/js/app.js?v=20261017c"></script>
 </body>
 </html>

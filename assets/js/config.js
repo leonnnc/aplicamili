@@ -25,6 +25,14 @@ const CONFIG = {
 
   pagos: ['Efectivo', 'Yape', 'Plin', 'Tarjeta', 'Transferencia'],
 
+  // Modalidades de cobro. `estado` define si el servicio queda cancelado,
+  // con adelanto o pendiente de pago.
+  estadosPago: [
+    { id: 'pagado', nombre: 'Pagado completo' },
+    { id: 'adelanto', nombre: 'Adelanto parcial' },
+    { id: 'pendiente', nombre: 'Sin pago · por cobrar' }
+  ],
+
   estados: [
     { id: 'recibido', nombre: 'En proceso', clase: 'warn' },
     { id: 'listo', nombre: 'Listo', clase: 'ok' },

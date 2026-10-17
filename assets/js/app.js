@@ -557,6 +557,69 @@
     };
   }
 
+  /* -------------------------------- Pago -------------------------------- */
+
+  const ETIQUETAS_PAGO = {
+    pagado: { nombre: 'Pagado', clase: 'ok' },
+    adelanto: { nombre: 'Adelanto', clase: 'warn' },
+    pendiente: { nombre: 'Por cobrar', clase: 'neutral' },
+    'sin-registro': { nombre: 'Sin registro', clase: 'info' }
+  };
+
+  /** Normaliza el pago de una orden; las órdenes antiguas no tienen el campo. */
+  function datosPago(orden) {
+    const total = redondear(Number(orden.total) || 0);
+    const guardado = orden.pago;
+    if (!guardado || !guardado.estado) {
+      return { estado: 'sin-registro', metodo: orden.formaPago || '—', monto: 0, saldo: total, movimientos: [] };
+    }
+    const monto = redondear(Math.min(Math.max(Number(guardado.monto) || 0, 0), total));
+    return {
+      estado: guardado.estado,
+      metodo: guardado.metodo || orden.formaPago || '—',
+      monto,
+      saldo: redondear(total - monto),
+      movimientos: Array.isArray(guardado.movimientos) ? guardado.movimientos : []
+    };
+  }
+
+  function etiquetaPago(estado) {
+    return ETIQUETAS_PAGO[estado] || ETIQUETAS_PAGO.pendiente;
+  }
+
+  /** Badge compacto para tablas: Pagado / Adelanto · saldo / Por cobrar. */
+  function badgePago(orden) {
+    const pago = datosPago(orden);
+    if (pago.estado === 'sin-registro') return '';
+    const def = etiquetaPago(pago.estado);
+    const deuda = pago.estado === 'adelanto' && pago.saldo > 0
+      ? `<br><span class="muted small">Debe ${money(pago.saldo)}</span>`
+      : '';
+    return `<span class="estado ${def.clase}">${esc(def.nombre)}</span>${deuda}`;
+  }
+
+  /** Lee el bloque de pago del formulario y lo normaliza contra el total. */
+  function calcularPago(total) {
+    const estadoElegido = $('#estadoPago').value || 'pendiente';
+    const metodo = $('#formaPago').value || CONFIG.pagos[0];
+    let monto = 0;
+
+    if (estadoElegido === 'pagado') monto = total;
+    else if (estadoElegido === 'adelanto') monto = Math.min(Math.max(parseNum($('#montoAdelanto').value), 0), total);
+
+    monto = redondear(monto);
+    const saldo = redondear(total - monto);
+
+    // Un adelanto que cubre todo el total es un pago completo; un adelanto de 0 es "por cobrar".
+    let estado = estadoElegido;
+    if (estadoElegido === 'adelanto') {
+      if (saldo <= 0) estado = 'pagado';
+      else if (monto <= 0) estado = 'pendiente';
+    }
+
+    return { estado, estadoElegido, metodo, monto, saldo };
+  }
+
   function refrescarResumen() {
     const totales = calcularTotales();
     $('#sumPrendas').textContent = String(totales.prendas);
@@ -567,7 +630,28 @@
     $('#filaEnvio').classList.toggle('oculto', totales.envio <= 0);
     $('#sumTotal').textContent = money(totales.total);
     $('#resumenCodigo').textContent = Store.nextOrderCode();
+    refrescarPago(totales.total);
     actualizarAviso();
+  }
+
+  function refrescarPago(total) {
+    const pago = calcularPago(total);
+    const esAdelanto = $('#estadoPago').value === 'adelanto';
+
+    $('#campoAdelanto').classList.toggle('oculto', !esAdelanto);
+    $('#sumPagado').textContent = money(pago.monto);
+    $('#sumSaldo').textContent = money(pago.saldo);
+
+    const chip = $('#pagoEstadoChip');
+    const def = etiquetaPago(pago.estado);
+    chip.textContent = def.nombre;
+    chip.className = `estado ${def.clase}`;
+
+    if (esAdelanto) {
+      $('#adelantoHint').textContent = pago.saldo > 0
+        ? `Queda un saldo de ${money(pago.saldo)} por cobrar.`
+        : 'El adelanto cubre el total: se registra como pagado.';
+    }
   }
 
   /* ------------------------------- Recojo ------------------------------- */
@@ -730,6 +814,7 @@
     if (!validar()) return;
 
     const totales = calcularTotales();
+    const pago = calcularPago(totales.total);
     const proceso = CONFIG.tiempos.find((t) => t.id === $('#proceso').value) || CONFIG.tiempos[1];
     const recojo = fechaRecojo();
     const nombre = $('#cliNombre').value.trim();
@@ -764,7 +849,22 @@
       proceso: proceso.id,
       procesoNombre: proceso.nombre,
       recojoEn: recojo.toISOString(),
-      formaPago: $('#formaPago').value,
+      formaPago: pago.metodo,
+      pago: {
+        estado: pago.estado,
+        metodo: pago.metodo,
+        monto: pago.monto,
+        saldo: pago.saldo,
+        movimientos: pago.monto > 0
+          ? [{
+              fecha: new Date().toISOString(),
+              monto: pago.monto,
+              metodo: pago.metodo,
+              tipo: pago.estado === 'pagado' ? 'completo' : 'adelanto',
+              operador: estado.operador ? estado.operador.nombre : 'Operador'
+            }]
+          : []
+      },
       notas: $('#notas').value.trim(),
       entrega: {
         tipo: esDomicilio() ? 'domicilio' : 'tienda',
@@ -801,6 +901,8 @@
     $('#descuento').value = '0';
     $('#tipoEntrega').value = 'tienda';
     $('#costoEnvio').value = '0';
+    $('#estadoPago').value = 'pendiente';
+    $('#montoAdelanto').value = '0';
     $('#campoDireccion').classList.add('oculto');
     $('#campoCostoEnvio').classList.add('oculto');
     $('#clienteEncontrado').classList.add('oculto');
@@ -943,6 +1045,7 @@
   function ticketHTML(orden) {
     const { dia, hora } = fechaAviso(new Date(orden.recojoEn));
     const { domicilio, direccion, costo } = datosEntrega(orden);
+    const pago = datosPago(orden);
     const filas = orden.items
       .map((item) => `<tr><td>${esc(detalleItem(item))}</td><td>${money(item.subtotal)}</td></tr>`)
       .join('');
@@ -963,7 +1066,9 @@
       ${orden.descuento > 0 ? `<div class="tk-row"><span>Descuento</span><span>-${money(orden.descuento)}</span></div>` : ''}
       ${costo > 0 ? `<div class="tk-row"><span>Envío</span><span>${money(costo)}</span></div>` : ''}
       <div class="tk-row tk-total"><span>TOTAL</span><span>${money(orden.total)}</span></div>
-      <div class="tk-row"><span>Pago</span><span>${esc(orden.formaPago)}</span></div>
+      <div class="tk-row"><span>Pago</span><span>${esc(pago.metodo)}</span></div>
+      <div class="tk-row"><span>Pagado</span><span>${money(pago.monto)}</span></div>
+      ${pago.saldo > 0 ? `<div class="tk-row"><span>Saldo</span><span>${money(pago.saldo)}</span></div>` : ''}
       ${orden.entregadoEn ? `<div class="tk-row"><span>Salida</span><span>${fmtFecha.format(new Date(orden.entregadoEn))} ${fmtHora.format(new Date(orden.entregadoEn))}</span></div>` : ''}
       ${orden.almacen && orden.estado !== 'entregado' ? `<div class="tk-row"><span>Almacén</span><span>${esc(orden.almacen.codigo)}</span></div>` : ''}
       ${orden.recibidoPor ? `<div class="tk-row"><span>Recibió</span><span>${esc(orden.recibidoPor.nombre)}${orden.recibidoPor.documento ? ` · ${esc(orden.recibidoPor.documento)}` : ''}</span></div>` : ''}
@@ -1043,6 +1148,7 @@
     const { dia, hora } = fechaAviso(new Date(orden.recojoEn));
     const badge = badgeEstado(orden.estado);
     const entrega = datosEntrega(orden);
+    const pago = datosPago(orden);
 
     const pasos = [
       { titulo: 'Ingreso', fecha: orden.ingreso, nota: orden.operador ? `Registró ${orden.operador}` : '' },
@@ -1071,7 +1177,9 @@
         <div><dt>Entrega</dt><dd>${entrega.domicilio ? `Domicilio · ${esc(entrega.direccion || 'sin dirección')}` : 'Recojo en tienda'}</dd></div>
         ${orden.almacen ? `<div><dt>Almacén</dt><dd><strong>${esc(orden.almacen.codigo)}</strong>${orden.almacen.nota ? ` · ${esc(orden.almacen.nota)}` : ''}</dd></div>` : ''}
         <div><dt>Proceso</dt><dd>${esc(orden.procesoNombre || '—')}</dd></div>
-        <div><dt>Pago</dt><dd>${esc(orden.formaPago)}</dd></div>
+        <div><dt>Pago</dt><dd>${esc(pago.metodo)} · ${esc(etiquetaPago(pago.estado).nombre)}</dd></div>
+        <div><dt>Pagado</dt><dd>${money(pago.monto)}</dd></div>
+        <div><dt>Saldo</dt><dd>${pago.saldo > 0 ? `<strong>${money(pago.saldo)}</strong>` : '—'}</dd></div>
         <div><dt>Estado</dt><dd>${badge}</dd></div>
         <div><dt>Listo</dt><dd>${orden.listoEn ? `${fmtFecha.format(new Date(orden.listoEn))} · ${fmtHora.format(new Date(orden.listoEn))}` : '—'}</dd></div>
         <div><dt>Salida</dt><dd>${orden.entregadoEn ? `${fmtFecha.format(new Date(orden.entregadoEn))} · ${fmtHora.format(new Date(orden.entregadoEn))}` : '—'}</dd></div>
@@ -1107,11 +1215,14 @@
         ${orden.descuento > 0 ? `<div><span class="k">Descuento</span><span class="v">-${money(orden.descuento)}</span></div>` : ''}
         ${entrega.costo > 0 ? `<div><span class="k">Envío</span><span class="v">${money(entrega.costo)}</span></div>` : ''}
         <div class="total"><span>Total</span><span>${money(orden.total)}</span></div>
+        <div><span class="k">Pagado</span><span class="v">${money(pago.monto)}</span></div>
+        ${pago.saldo > 0 ? `<div><span class="k">Saldo por cobrar</span><span class="v"><strong>${money(pago.saldo)}</strong></span></div>` : ''}
       </div>
 
       ${orden.notas ? `<p class="hint" style="margin-bottom:12px">Observaciones: ${esc(orden.notas)}</p>` : ''}
 
       <div class="acciones-fila">
+        ${pago.saldo > 0 ? `<button class="btn btn-primary btn-sm" type="button" data-cobrar="${orden.id}">Cobrar saldo · ${money(pago.saldo)}</button>` : ''}
         ${orden.estado === 'recibido' ? `<button class="btn btn-primary btn-sm" type="button" data-listo="${orden.id}">Marcar listo y avisar</button>` : ''}
         ${orden.estado !== 'entregado' ? `<button class="btn ${orden.estado === 'listo' || orden.estado === 'almacen' ? 'btn-primary' : 'btn-outline'} btn-sm" type="button" data-salida="${orden.id}">Prendas recogidas</button>` : ''}
         ${orden.estado !== 'entregado' ? `<button class="btn btn-outline btn-sm" type="button" data-almacen="${orden.id}">${orden.almacen ? 'Cambiar ubicación' : 'Guardar en almacén'}</button>` : ''}
@@ -1123,6 +1234,84 @@
         <button class="btn btn-outline" type="button" data-accion="imprimir" data-id="${orden.id}">Imprimir comprobante</button>
       </div>
     `);
+  }
+
+  /* ------------------------------- Cobros ------------------------------- */
+
+  function abrirCobro(id) {
+    const orden = Store.getOrden(id);
+    if (!orden) return;
+    const pago = datosPago(orden);
+
+    if (pago.saldo <= 0) {
+      toast('Este servicio ya está pagado');
+      return;
+    }
+
+    abrirModal(`
+      <p class="eyebrow">Cobro</p>
+      <h2>Registrar pago · ${esc(orden.codigo)}</h2>
+      <p class="muted">${esc(orden.cliente.nombre)} · saldo pendiente ${money(pago.saldo)}</p>
+
+      <div class="grid-2" style="margin-top:16px">
+        <div class="field">
+          <label for="cobroMetodo">Tipo de pago</label>
+          <select id="cobroMetodo">${CONFIG.pagos.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label for="cobroMonto">Monto a cobrar (S/)</label>
+          <input id="cobroMonto" type="number" min="0" step="0.10" value="${pago.saldo.toFixed(2)}" inputmode="decimal" />
+        </div>
+      </div>
+
+      <p class="form-error" id="cobroError" role="alert"></p>
+
+      <div class="modal-acciones">
+        <button class="btn btn-primary" type="button" data-confirmar-cobro="${orden.id}">Confirmar cobro</button>
+        <button class="btn btn-ghost" type="button" data-accion="cerrar">Cancelar</button>
+      </div>
+    `);
+
+    const campo = $('#cobroMonto');
+    if (campo) {
+      campo.focus();
+      campo.select();
+    }
+  }
+
+  function confirmarCobro(id) {
+    const orden = Store.getOrden(id);
+    if (!orden) return;
+    const pago = datosPago(orden);
+    const monto = redondear(Math.min(Math.max(parseNum($('#cobroMonto').value), 0), pago.saldo));
+
+    if (monto <= 0) {
+      $('#cobroError').textContent = 'Escribe un monto mayor a cero.';
+      return;
+    }
+
+    const metodo = $('#cobroMetodo').value || CONFIG.pagos[0];
+    const montoTotal = redondear(pago.monto + monto);
+    const saldo = redondear(Number(orden.total) - montoTotal);
+    const movimientos = pago.movimientos.concat([{
+      fecha: new Date().toISOString(),
+      monto,
+      metodo,
+      tipo: saldo <= 0 ? 'saldo' : 'abono',
+      operador: estado.operador ? estado.operador.nombre : 'Operador'
+    }]);
+
+    Store.updateOrden(id, {
+      formaPago: metodo,
+      pago: { estado: saldo <= 0 ? 'pagado' : 'adelanto', metodo, monto: montoTotal, saldo, movimientos }
+    });
+
+    cerrarModal();
+    renderOrdenes();
+    renderResumen();
+    renderClientes();
+    toast(saldo <= 0 ? 'Pago completo registrado' : `Abono registrado · saldo ${money(saldo)}`);
+    abrirDetalle(id);
   }
 
   function abrirDatos() {
@@ -1166,7 +1355,7 @@
   }
 
   function exportarCSV() {
-    const filas = [['Codigo', 'Servicio', 'Cliente', 'Codigo cliente', 'Telefono', 'Ingreso', 'Recojo', 'Salida', 'Entrega', 'Almacen', 'Peso kg', 'Prendas', 'Total', 'Estado', 'Pago', 'Recogido por']];
+    const filas = [['Codigo', 'Servicio', 'Cliente', 'Codigo cliente', 'Telefono', 'Ingreso', 'Recojo', 'Salida', 'Entrega', 'Almacen', 'Peso kg', 'Prendas', 'Total', 'Estado', 'Pago', 'Estado pago', 'Pagado', 'Saldo', 'Recogido por']];
     Store.getOrdenes().forEach((o) => {
       filas.push([
         o.codigo,
@@ -1183,7 +1372,10 @@
         o.prendas,
         Number(o.total).toFixed(2),
         o.estado,
-        o.formaPago,
+        datosPago(o).metodo,
+        etiquetaPago(datosPago(o).estado).nombre,
+        datosPago(o).monto.toFixed(2),
+        datosPago(o).saldo.toFixed(2),
         o.recibidoPor ? o.recibidoPor.nombre : ''
       ]);
     });
@@ -1613,6 +1805,7 @@
       .map((o) => {
         const recojo = new Date(o.recojoEn);
         const entrega = datosEntrega(o);
+        const pagoBadge = badgePago(o);
         const detalle = [o.pesoTotal > 0 ? `${Number(o.pesoTotal).toFixed(2)} kg` : null, `${o.prendas} und`].filter(Boolean).join(' · ');
         return `<tr>
           <td class="code-cell">${esc(o.codigo)}<br><span class="muted small">Servicio #${String(o.servicioN || 1).padStart(2, '0')}</span></td>
@@ -1620,11 +1813,12 @@
           <td>${fmtFecha.format(new Date(o.ingreso))}<br><span class="muted small">${fmtHora.format(new Date(o.ingreso))}</span></td>
           <td>${fmtFecha.format(recojo)}<br><span class="muted small">${fmtHora.format(recojo)}</span>${entrega.domicilio ? '<br><span class="tag-domicilio">Domicilio</span>' : ''}</td>
           <td class="detalle-celda">${esc(detalle)}</td>
-          <td class="right code-cell">${money(o.total)}</td>
+          <td class="right code-cell">${money(o.total)}${pagoBadge ? `<br>${pagoBadge}` : ''}</td>
           <td>${badgeEstado(o.estado)}${o.entregadoEn ? `<br><span class="muted small">Salida ${fmtHora.format(new Date(o.entregadoEn))}</span>` : ''}${o.recibidoPor ? `<br><span class="muted small">Recogió: ${esc(o.recibidoPor.nombre)}</span>` : ''}${o.almacen && o.estado !== 'entregado' ? `<br><span class="tag-almacen">${esc(o.almacen.codigo)}</span>` : ''}</td>
           <td class="right">
             <div class="row-actions">
               <button class="btn-mini" type="button" data-ver="${o.id}">Ver</button>
+              ${datosPago(o).saldo > 0 ? `<button class="btn-mini" type="button" data-cobrar="${o.id}">Cobrar</button>` : ''}
               <button class="btn-mini wa" type="button" data-wa="${o.id}">WhatsApp</button>
               ${o.estado === 'recibido' ? `<button class="btn-mini" type="button" data-listo="${o.id}">Listo</button>` : ''}
               ${o.estado === 'listo' ? `<button class="btn-mini" type="button" data-almacen="${o.id}">Almacén</button>` : ''}
@@ -1789,11 +1983,24 @@
     const facturadoHoy = ingresosDelDia.reduce((acc, o) => acc + (Number(o.total) || 0), 0);
     const prendasHoy = ingresosDelDia.reduce((acc, o) => acc + (Number(o.prendas) || 0), 0);
 
+    const cobradoHoy = ordenes.reduce((acc, o) => {
+      const movimientos = datosPago(o).movimientos;
+      return acc + movimientos
+        .filter((m) => m && m.fecha && mismoDia(new Date(m.fecha), hoy))
+        .reduce((suma, m) => suma + (Number(m.monto) || 0), 0);
+    }, 0);
+
+    const porCobrar = ordenes
+      .filter((o) => o.pago && o.estado !== 'entregado')
+      .reduce((acc, o) => acc + datosPago(o).saldo, 0);
+
     $('#metrics').innerHTML = `
       <div class="metric"><p class="metric-label">Ingresos hoy</p><p class="metric-value">${ingresosDelDia.length}</p><p class="metric-sub">${prendasHoy} prendas registradas</p></div>
       <div class="metric"><p class="metric-label">Salidas hoy</p><p class="metric-value">${salidasDelDia.length}</p><p class="metric-sub">${enPlanta.length} en planta · ${enAlmacen.length} en almacén</p></div>
       <div class="metric"><p class="metric-label">Kilos hoy</p><p class="metric-value">${kilosHoy.toFixed(2)}</p><p class="metric-sub">pesados en mostrador</p></div>
-      <div class="metric"><p class="metric-label">Facturado hoy</p><p class="metric-value">${money(facturadoHoy)}</p><p class="metric-sub">ingresos del día</p></div>
+      <div class="metric"><p class="metric-label">Facturado hoy</p><p class="metric-value">${money(facturadoHoy)}</p><p class="metric-sub">servicios del día</p></div>
+      <div class="metric"><p class="metric-label">Cobrado hoy</p><p class="metric-value">${money(cobradoHoy)}</p><p class="metric-sub">pagos y adelantos</p></div>
+      <div class="metric"><p class="metric-label">Por cobrar</p><p class="metric-value">${money(porCobrar)}</p><p class="metric-sub">servicios abiertos</p></div>
     `;
 
     const dias = [];
@@ -1862,11 +2069,11 @@
     base.setHours(9, 0, 0, 0);
 
     const demo = [
-      { dias: 0, hora: 9, nombre: 'Rosa Meléndez', tel: '987112233', email: 'rosa@correo.com', items: [['terno_completo', 1], ['peso_lavado', 3.66]], estado: 'recibido' },
-      { dias: 0, hora: 11, nombre: 'Jorge Salazar', tel: '912345678', email: '', items: [['camisa', 4], ['pantalon', 2]], estado: 'recibido' },
-      { dias: 1, hora: 10, nombre: 'Ana Torres', tel: '998877665', email: 'ana.torres@correo.com', items: [['edredon_2', 1], ['peso_lavado_secado', 5.2]], estado: 'almacen', almacen: 'ALM-A2' },
-      { dias: 2, hora: 15, nombre: 'Carlos Ríos', tel: '955443322', email: '', items: [['terno_incompleto', 1], ['zapatillas', 1]], estado: 'entregado' },
-      { dias: 3, hora: 12, nombre: 'Lucía Paredes', tel: '944332211', email: 'lucia@correo.com', items: [['vestido_fiesta', 1], ['peso_planchado', 2.4]], estado: 'entregado' },
+      { dias: 0, hora: 9, nombre: 'Rosa Meléndez', tel: '987112233', email: 'rosa@correo.com', items: [['terno_completo', 1], ['peso_lavado', 3.66]], estado: 'recibido', pago: 'adelanto', adelanto: 20 },
+      { dias: 0, hora: 11, nombre: 'Jorge Salazar', tel: '912345678', email: '', items: [['camisa', 4], ['pantalon', 2]], estado: 'recibido', pago: 'pendiente' },
+      { dias: 1, hora: 10, nombre: 'Ana Torres', tel: '998877665', email: 'ana.torres@correo.com', items: [['edredon_2', 1], ['peso_lavado_secado', 5.2]], estado: 'almacen', almacen: 'ALM-A2', pago: 'pagado' },
+      { dias: 2, hora: 15, nombre: 'Carlos Ríos', tel: '955443322', email: '', items: [['terno_incompleto', 1], ['zapatillas', 1]], estado: 'entregado', pago: 'pagado' },
+      { dias: 3, hora: 12, nombre: 'Lucía Paredes', tel: '944332211', email: 'lucia@correo.com', items: [['vestido_fiesta', 1], ['peso_planchado', 2.4]], estado: 'entregado', pago: 'adelanto', adelanto: 25 },
       { dias: 5, hora: 16, nombre: 'Miguel Ángel Vera', tel: '933221100', email: '', items: [['cortina', 6], ['alfombra', 2]], estado: 'entregado', envio: 8, direccion: 'Jr. Las Begonias 128, San Isidro' }
     ];
 
@@ -1897,6 +2104,10 @@
       let recojo = calcularListo(ingreso, 24);
       if (recojo.getTime() < Date.now()) recojo = calcularListo(new Date(), 6);
 
+      const totalOrden = redondear(subtotal + (d.envio || 0));
+      const montoPago = d.pago === 'pagado' ? totalOrden : d.pago === 'adelanto' ? Math.min(d.adelanto || 0, totalOrden) : 0;
+      const saldoPago = redondear(totalOrden - montoPago);
+
       Store.addOrden({
         id: uid('ord'),
         clienteId: cliente.id,
@@ -1909,12 +2120,21 @@
         prendas,
         subtotal,
         descuento: 0,
-        total: redondear(subtotal + (d.envio || 0)),
+        total: totalOrden,
         ingreso: ingreso.toISOString(),
         proceso: 'normal',
         procesoNombre: 'Normal · 24 horas',
         recojoEn: recojo.toISOString(),
         formaPago: 'Efectivo',
+        pago: {
+          estado: saldoPago <= 0 ? 'pagado' : montoPago > 0 ? 'adelanto' : 'pendiente',
+          metodo: 'Efectivo',
+          monto: montoPago,
+          saldo: saldoPago,
+          movimientos: montoPago > 0
+            ? [{ fecha: ingreso.toISOString(), monto: montoPago, metodo: 'Efectivo', tipo: saldoPago <= 0 ? 'completo' : 'adelanto', operador: 'Mili Rojas' }]
+            : []
+        },
         notas: '',
         entrega: {
           tipo: d.direccion ? 'domicilio' : 'tienda',
@@ -2035,6 +2255,16 @@
       }
     });
 
+    // Pago
+    $('#estadoPago').addEventListener('change', () => refrescarResumen());
+    $('#montoAdelanto').addEventListener('input', () => refrescarResumen());
+    $('#montoAdelanto').addEventListener('blur', () => {
+      const total = calcularTotales().total;
+      const monto = Math.min(Math.max(parseNum($('#montoAdelanto').value), 0), total);
+      $('#montoAdelanto').value = monto ? monto.toFixed(2) : '0';
+      refrescarResumen();
+    });
+
     $('#btnRegistrar').addEventListener('click', () => registrar(true));
     $('#btnRegistrarSin').addEventListener('click', () => registrar(false));
 
@@ -2050,7 +2280,9 @@
       const almacen = evento.target.closest('[data-almacen]');
       const listo = evento.target.closest('[data-listo]');
       const imprimir = evento.target.closest('[data-print]');
+      const cobrar = evento.target.closest('[data-cobrar]');
       if (ver) abrirDetalle(ver.dataset.ver);
+      if (cobrar) abrirCobro(cobrar.dataset.cobrar);
       if (almacen) abrirAlmacen(almacen.dataset.almacen);
       if (listo) marcarListo(listo.dataset.listo, true, false);
       if (wa) {
@@ -2097,6 +2329,18 @@
       const salida = evento.target.closest('[data-salida]');
       if (salida) {
         confirmarSalida(salida.dataset.salida);
+        return;
+      }
+
+      const cobrar = evento.target.closest('[data-cobrar]');
+      if (cobrar) {
+        abrirCobro(cobrar.dataset.cobrar);
+        return;
+      }
+
+      const confirmarCobroBtn = evento.target.closest('[data-confirmar-cobro]');
+      if (confirmarCobroBtn) {
+        confirmarCobro(confirmarCobroBtn.dataset.confirmarCobro);
         return;
       }
 
@@ -2182,6 +2426,8 @@
     $('#proceso').innerHTML = CONFIG.tiempos.map((t) => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
     $('#proceso').value = 'normal';
     $('#formaPago').innerHTML = CONFIG.pagos.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+    $('#estadoPago').innerHTML = CONFIG.estadosPago.map((e) => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('');
+    $('#estadoPago').value = 'pendiente';
     $('#filtroEstado').innerHTML =
       '<option value="">Todos los estados</option>' +
       CONFIG.estados.map((e) => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('');
