@@ -677,6 +677,197 @@ a.btn { text-decoration: none; }
   color: var(--brand-dark);
 }
 
+/* ------------------------- Tira de la semana ------------------------- */
+.semana {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.semana-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.semana-rango {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.01em;
+}
+
+.semana-flecha {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0 0 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.semana-flecha:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand-strong);
+}
+
+.semana-flecha:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.semana-dias {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scroll-snap-type: x proximity;
+}
+
+.dia {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  min-width: 58px;
+  padding: 8px 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dia:hover {
+  border-color: var(--brand);
+}
+
+.dia-nom {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.dia-num {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dia-mes {
+  font-size: 10px;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+.dia-tag {
+  margin-top: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dia.en-proceso {
+  background: var(--brand-softer);
+  border-style: dashed;
+}
+
+.dia.es-hoy {
+  border-color: var(--brand);
+}
+
+.dia.seleccionado {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+
+.dia.seleccionado .dia-num {
+  color: var(--brand-strong);
+}
+
+.dia.seleccionado .dia-tag,
+.dia.es-hoy.seleccionado .dia-tag {
+  background: var(--brand);
+  color: #fff;
+}
+
+.semana-fuera {
+  display: flex;
+}
+
+.semana-volver {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px dashed var(--brand);
+  border-radius: 8px;
+  background: var(--brand-softer);
+  color: var(--brand-strong);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.semana-volver:hover {
+  background: var(--brand-soft);
+}
+
+.semana-pie {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+
+.semana-pie > label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.hora-input {
+  width: 96px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.semana-pie .hint {
+  flex: 1;
+  min-width: 150px;
+  margin: 0;
+}
+
 /* Bloque de pago del resumen lateral */
 .pago-box {
   display: grid;

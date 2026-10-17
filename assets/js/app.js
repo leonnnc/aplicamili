@@ -29,6 +29,7 @@
     clienteExistente: null,
     ordenActual: null,
     recojoManual: false,
+    offsetSemana: 0,
     temporizador: null
   };
 
@@ -123,9 +124,12 @@
 
   /* ------------------------------ Sesión -------------------------------- */
 
-  /** El login vive en Firebase Auth; el usuario/PIN local queda para desarrollo. */
+  /** El login vive en Firebase Auth; el usuario/PIN local queda para desarrollo
+      y solo se acepta cuando la app corre en este equipo. */
+  const esEquipoLocal = ['localhost', '127.0.0.1', '::1', ''].includes(location.hostname);
+
   const usaFirebaseAuth = () =>
-    Sync.hayNube && (typeof FIREBASE_LOGIN_OBLIGATORIO === 'undefined' || FIREBASE_LOGIN_OBLIGATORIO);
+    Sync.hayNube && (typeof FIREBASE_LOGIN_OBLIGATORIO === 'undefined' || FIREBASE_LOGIN_OBLIGATORIO || !esEquipoLocal);
 
   async function iniciarSesion(evento) {
     evento.preventDefault();
@@ -139,8 +143,14 @@
       boton.textContent = 'Verificando…';
     }
 
+    // En local se acepta usuario/PIN, pero si escriben un correo se usa Firebase.
+    const porFirebase = usaFirebaseAuth() || (Sync.hayNube && usuario.includes('@'));
+
     try {
-      if (usaFirebaseAuth()) {
+      if (porFirebase) {
+        if (!usuario.includes('@')) {
+          throw new Error('Escribe tu correo electrónico para entrar.');
+        }
         estado.operador = await Sync.entrar(usuario, clave);
       } else {
         const encontrado = CONFIG.operadores.find((o) => o.usuario === usuario.toLowerCase() && o.pin === clave);
@@ -205,7 +215,7 @@
 
   function restaurarSesion() {
     // Con Firebase la sesión la restaura el SDK por su cuenta (onAuthStateChanged).
-    if (Sync.hayNube) return;
+    if (usaFirebaseAuth()) return;
     try {
       const crudo = sessionStorage.getItem(SESION_KEY);
       if (!crudo) return;
@@ -249,12 +259,16 @@
     }
     const campo = $('#usuario');
     campo.type = 'text';
-    campo.placeholder = 'Tu usuario';
+    campo.placeholder = 'usuario o correo@lavamili.pe';
     campo.removeAttribute('autocomplete');
     const etiqueta = campo.closest('.field') && campo.closest('.field').querySelector('label');
-    if (etiqueta) etiqueta.textContent = 'Usuario';
-    $('#pin').placeholder = 'PIN de operador';
-    if (nota) nota.textContent = 'Modo local: Firebase no está configurado. Los datos quedan solo en este navegador.';
+    if (etiqueta) etiqueta.textContent = 'Usuario o correo';
+    $('#pin').placeholder = 'PIN o contraseña';
+    if (nota) {
+      nota.textContent = Sync.hayNube
+        ? 'En este equipo puedes entrar con usuario y PIN, o con tu correo de Firebase.'
+        : 'Modo local: Firebase no está configurado. Los datos quedan solo en este navegador.';
+    }
   }
 
   function conectarSincronizacion() {
@@ -663,12 +677,135 @@
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
+  const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+
+  /** Fecha a medianoche: comparar días sin arrastrar horas. */
+  function soloDia(fecha) {
+    const dia = new Date(fecha);
+    dia.setHours(0, 0, 0, 0);
+    return dia;
+  }
+
+  function isoDia(fecha) {
+    const dia = soloDia(fecha);
+    return `${dia.getFullYear()}-${String(dia.getMonth() + 1).padStart(2, '0')}-${String(dia.getDate()).padStart(2, '0')}`;
+  }
+
+  function sumarDias(fecha, dias) {
+    const nueva = new Date(fecha);
+    nueva.setDate(nueva.getDate() + dias);
+    return nueva;
+  }
+
+  /** Días de calendario que dura el proceso (0 = listo hoy mismo). */
+  function diasDeProceso() {
+    const recojo = fechaRecojo();
+    if (!recojo) return 0;
+    return Math.max(0, Math.round((soloDia(recojo) - soloDia(new Date())) / 86400000));
+  }
+
+  function textoDias(dias) {
+    if (dias <= 0) return 'mismo día';
+    return dias === 1 ? '1 día' : `${dias} días`;
+  }
+
+  /** Pinta la semana visible: hoy primero, el día de recojo resaltado y los
+      días intermedios marcados como proceso. */
+  function renderSemana() {
+    const hoy = soloDia(new Date());
+    const inicio = sumarDias(hoy, estado.offsetSemana);
+    const recojo = fechaRecojo();
+    const diaRecojo = recojo ? soloDia(recojo) : null;
+
+    const dias = Array.from({ length: 7 }, (_, i) => sumarDias(inicio, i));
+    const primero = dias[0];
+    const ultimo = dias[dias.length - 1];
+
+    $('#semanaRango').textContent = primero.getMonth() === ultimo.getMonth()
+      ? `${primero.getDate()} – ${ultimo.getDate()} de ${MESES_CORTOS[primero.getMonth()]}`
+      : `${primero.getDate()} ${MESES_CORTOS[primero.getMonth()]} – ${ultimo.getDate()} ${MESES_CORTOS[ultimo.getMonth()]}`;
+
+    $('#semana').innerHTML = dias.map((dia) => {
+      const iso = isoDia(dia);
+      const esHoy = dia.getTime() === hoy.getTime();
+      const seleccionado = Boolean(diaRecojo) && dia.getTime() === diaRecojo.getTime();
+      const enProceso = Boolean(diaRecojo) && dia > hoy && dia < diaRecojo;
+
+      const clases = ['dia'];
+      if (esHoy) clases.push('es-hoy');
+      if (enProceso) clases.push('en-proceso');
+      if (seleccionado) clases.push('seleccionado');
+
+      const etiqueta = seleccionado
+        ? (esHoy ? 'Hoy · listo' : 'Listo')
+        : (esHoy ? 'Hoy' : (enProceso ? 'Proceso' : ''));
+
+      return `
+        <button type="button" class="${clases.join(' ')}" data-dia="${iso}" aria-pressed="${seleccionado}"
+                title="${DIAS_CORTOS[dia.getDay()]} ${dia.getDate()} ${MESES_CORTOS[dia.getMonth()]}">
+          <span class="dia-nom">${DIAS_CORTOS[dia.getDay()]}</span>
+          <span class="dia-num">${dia.getDate()}</span>
+          <span class="dia-mes">${MESES_CORTOS[dia.getMonth()]}</span>
+          ${etiqueta ? `<span class="dia-tag">${etiqueta}</span>` : ''}
+        </button>`;
+    }).join('');
+
+    // Si el día elegido quedó fuera de la semana que se está viendo,
+    // ofrecemos volver a él en vez de dejar la tira sin selección.
+    const visible = Boolean(diaRecojo) && dias.some((d) => d.getTime() === diaRecojo.getTime());
+    const fuera = $('#semanaFuera');
+    if (fuera) {
+      if (diaRecojo && !visible) {
+        fuera.innerHTML = `<button type="button" class="semana-volver" id="semanaVolver">Elegido: ${esc(fechaAviso(diaRecojo).dia)} · volver a esa semana</button>`;
+        fuera.classList.remove('oculto');
+      } else {
+        fuera.innerHTML = '';
+        fuera.classList.add('oculto');
+      }
+    }
+
+    $('#semanaPrev').disabled = estado.offsetSemana <= 0;
+  }
+
+  function actualizarHintRecojo(sugerido) {
+    const recojo = fechaRecojo();
+    if (!recojo) {
+      $('#recojoHint').textContent = '';
+      return;
+    }
+    const { dia, hora } = fechaAviso(recojo);
+    const prefijo = sugerido ? 'Sugerido: ' : '';
+    $('#recojoHint').textContent = `${prefijo}${textoDias(diasDeProceso())} de proceso · listo el ${dia} a las ${hora}`;
+  }
+
+  function ponerHoraRecojo(fecha) {
+    $('#horaRecojo').value = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`;
+  }
+
+  /** El operador elige el día tocando la tarjeta. */
+  function seleccionarDia(iso) {
+    const hora = $('#horaRecojo').value || '08:00';
+    $('#recojo').value = `${iso}T${hora}`;
+    estado.recojoManual = true;
+    renderSemana();
+    actualizarHintRecojo(false);
+    actualizarAviso();
+  }
+
   function sugerirRecojo() {
     const proceso = CONFIG.tiempos.find((t) => t.id === $('#proceso').value) || CONFIG.tiempos[1];
     const sugerida = calcularListo(new Date(), proceso.horas);
     $('#recojo').value = aInputLocal(sugerida);
+    ponerHoraRecojo(sugerida);
     estado.recojoManual = false;
-    $('#recojoHint').textContent = `Sugerido: ${fechaAviso(sugerida).corta}`;
+
+    // Si la sugerencia cae fuera de la semana visible, movemos la tira.
+    const diferencia = Math.round((soloDia(sugerida) - soloDia(new Date())) / 86400000);
+    estado.offsetSemana = diferencia > 6 ? Math.floor(diferencia / 7) * 7 : 0;
+
+    renderSemana();
+    actualizarHintRecojo(true);
     actualizarAviso();
   }
 
@@ -708,10 +845,15 @@
       ? `entregaremos tus prendas en ${esc(lugar)}`
       : `tus prendas estarán listas`;
 
+    const dias = diasDeProceso();
+    const proceso = dias <= 0
+      ? 'Proceso para el mismo día'
+      : `Proceso de ${textoDias(dias)}`;
+
     aviso.className = 'aviso-preview';
     aviso.innerHTML = `<p class="eyebrow">Aviso al cliente</p>
-      <p>Hola ${esc(nombre)}, ${frase} el <strong>${esc(dia)}</strong> desde las <strong>${esc(hora)}</strong>.</p>
-      <p class="hint" style="margin-top:6px">Programado: ${esc(corta)}</p>`;
+      <p>Hola ${esc(nombre)}, ${frase} el <strong>${esc(dia)}</strong> desde las <strong>${esc(hora)}</strong></p>
+      <p class="hint" style="margin-top:6px">${esc(proceso)} · programado: ${esc(corta)}</p>`;
   }
 
   /* ------------------------------- Cliente ------------------------------ */
@@ -973,6 +1115,12 @@
     }
 
     lineas.push(`TOTAL A PAGAR: ${money(orden.total)}`);
+
+    if (tipo === 'registro') {
+      const dias = Math.max(0, Math.round((soloDia(new Date(orden.recojoEn)) - soloDia(new Date(orden.ingreso))) / 86400000));
+      lineas.push(`PROCESO: ${dias <= 0 ? 'mismo día' : `${dias} ${dias === 1 ? 'día' : 'días'}`}`);
+    }
+
     lineas.push('');
 
     if (domicilio) {
@@ -2242,6 +2390,40 @@
       estado.recojoManual = true;
       actualizarAviso();
       refrescarResumen();
+    });
+
+    // Tira de la semana
+    $('#semana').addEventListener('click', (evento) => {
+      const tarjeta = evento.target.closest('[data-dia]');
+      if (tarjeta) seleccionarDia(tarjeta.dataset.dia);
+    });
+
+    $('#semanaPrev').addEventListener('click', () => {
+      estado.offsetSemana = Math.max(0, estado.offsetSemana - 7);
+      renderSemana();
+    });
+
+    $('#semanaNext').addEventListener('click', () => {
+      estado.offsetSemana += 7;
+      renderSemana();
+    });
+
+    $('#semanaFuera').addEventListener('click', (evento) => {
+      if (!evento.target.closest('#semanaVolver')) return;
+      const recojo = fechaRecojo();
+      if (!recojo) return;
+      const diferencia = Math.round((soloDia(recojo) - soloDia(new Date())) / 86400000);
+      estado.offsetSemana = diferencia > 6 ? Math.floor(diferencia / 7) * 7 : 0;
+      renderSemana();
+    });
+
+    $('#horaRecojo').addEventListener('change', () => {
+      const recojo = fechaRecojo();
+      if (!recojo) return;
+      $('#recojo').value = `${isoDia(recojo)}T${$('#horaRecojo').value || '08:00'}`;
+      renderSemana();
+      actualizarHintRecojo(false);
+      actualizarAviso();
     });
     $('#tipoEntrega').addEventListener('change', actualizarEntrega);
     $('#costoEnvio').addEventListener('input', refrescarResumen);

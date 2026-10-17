@@ -9,19 +9,21 @@
    ========================================================================== */
 
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCIZ50kwN3pgSO5guZxIQVAnDESRnsmCBU",
-  authDomain: "aplicalav.firebaseapp.com",
-  projectId: "aplicalav",
-  storageBucket: "aplicalav.firebasestorage.app",
-  messagingSenderId: "350151186821",
-  appId: "1:350151186821:web:3752392eaf8af072c8ccec"
+  apiKey: 'AIzaSyCIZ50kwN3pgSO5guZxIQVAnDESRnsmCBU',
+  authDomain: 'aplicalav.firebaseapp.com',
+  projectId: 'aplicalav',
+  storageBucket: 'aplicalav.firebasestorage.app',
+  messagingSenderId: '350151186821',
+  appId: '1:350151186821:web:3752392eaf8af072c8ccec'
 };
 
-/* Identificador del negocio en Firestore. Todas las colecciones viven en
-   negocios/{NEGOCIO_ID}/...  Si algún día abres otra sede, cambia este valor
-   (o usa uno distinto por sucursal) sin tocar el resto del código. */
-const NEGOCIO_ID = "lavamili";
+// Sede dentro de Firestore: negocios/{NEGOCIO_ID}/...
+const NEGOCIO_ID = 'lavamili';
 
-/* true  → la app exige correo y contraseña de Firebase Authentication.
-   false → acceso local con los usuarios de config.js (solo desarrollo). */
-const FIREBASE_LOGIN_OBLIGATORIO = true;
+/* Control del acceso:
+   true  → siempre correo + contraseña de Firebase (recomendado en producción).
+   false → en este equipo (localhost / 127.0.0.1) acepta el usuario y PIN de
+           desarrollo; en cualquier dominio publicado sigue exigiendo Firebase.
+   Los PIN de prueba están en config.js (operadores) y deben borrarse antes
+   de usar la app con clientes reales. */
+const FIREBASE_LOGIN_OBLIGATORIO = false;

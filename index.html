@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
   <title>LavaMili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261017c" />
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261017e" />
 </head>
 <body>
 
@@ -214,13 +214,32 @@
                   <select id="proceso"></select>
                 </div>
                 <div class="field">
-                  <label for="recojo">Fecha y hora de recojo <span class="req">*</span></label>
-                  <input id="recojo" type="datetime-local" />
-                  <p class="hint" id="recojoHint"></p>
-                </div>
-                <div class="field">
                   <label for="descuento">Descuento (S/)</label>
                   <input id="descuento" type="number" min="0" step="0.10" value="0" />
+                </div>
+              </div>
+
+              <div class="field mt-14">
+                <label>Fecha de recojo <span class="req">*</span></label>
+
+                <div class="semana">
+                  <div class="semana-cab">
+                    <button type="button" class="semana-flecha" id="semanaPrev" aria-label="Semana anterior">&lsaquo;</button>
+                    <span class="semana-rango" id="semanaRango"></span>
+                    <button type="button" class="semana-flecha" id="semanaNext" aria-label="Semana siguiente">&rsaquo;</button>
+                  </div>
+
+                  <div class="semana-dias" id="semana" role="group" aria-label="Días disponibles para el recojo"></div>
+
+                  <div id="semanaFuera" class="semana-fuera oculto"></div>
+
+                  <div class="semana-pie">
+                    <label for="horaRecojo">Hora</label>
+                    <input id="horaRecojo" class="hora-input" type="time" step="900" value="08:00" />
+                    <p class="hint" id="recojoHint"></p>
+                  </div>
+
+                  <input id="recojo" type="datetime-local" class="oculto" tabindex="-1" aria-hidden="true" />
                 </div>
               </div>
 
@@ -493,16 +512,16 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261017c"></script>
-  <script src="assets/js/firebase-config.js?v=20261017c"></script>
-  <script src="assets/js/store.js?v=20261017c"></script>
+  <script src="assets/js/config.js?v=20261017e"></script>
+  <script src="assets/js/firebase-config.js?v=20261017e"></script>
+  <script src="assets/js/store.js?v=20261017e"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261017c"></script>
-  <script defer src="assets/js/app.js?v=20261017c"></script>
+  <script defer src="assets/js/sync.js?v=20261017e"></script>
+  <script defer src="assets/js/app.js?v=20261017e"></script>
 </body>
 </html>
