@@ -125,9 +125,9 @@ const Sync = (() => {
     publicarLote(lote);
   }
 
-  function publicarPrecios(mapa) {
+  function publicarPrecios(mapa, forzar) {
     if (!db || !usuario) return;
-    if (JSON.stringify(ultimo.precios || {}) === JSON.stringify(mapa || {})) return;
+    if (!forzar && JSON.stringify(ultimo.precios || {}) === JSON.stringify(mapa || {})) return;
     ultimo.precios = mapa || {};
     publicarLote(db.batch().set(docPrecios(), { mapa: mapa || {}, actualizado: new Date().toISOString() }));
   }
@@ -169,6 +169,17 @@ const Sync = (() => {
 
       if (primerSnapshot.precios) {
         primerSnapshot.precios = false;
+
+        // Este equipo acaba de reiniciar los precios a 0.00: el cero manda y
+        // se replica en la nube, en vez de traerse los valores antiguos.
+        if (Store.resetPreciosPendiente()) {
+          ultimo.precios = {};
+          Store.limpiarResetPrecios();
+          encolar(() => publicarPrecios({}, true));
+          avisarEstado();
+          return;
+        }
+
         const local = Store.getPrecios();
         if (!snap.exists && Object.keys(local).length) {
           ultimo.precios = {};

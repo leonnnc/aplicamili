@@ -231,6 +231,43 @@ const Store = (() => {
     escribir(KEYS.precios, mapa && typeof mapa === 'object' ? mapa : {});
   }
 
+  /* Los precios de fábrica pasaron a 0.00: la primera vez que se abre esta
+     versión se descartan los precios guardados de la versión anterior, para
+     que todo arranque en cero y el operador escriba el precio del servicio. */
+  const CLAVE_VERSION_PRECIOS = `${NS}.precios.version`;
+  const CLAVE_RESET_PRECIOS = `${NS}.precios.reset`;
+  const VERSION_PRECIOS = 'cero2';
+
+  function migrarPrecios() {
+    try {
+      if (localStorage.getItem(CLAVE_VERSION_PRECIOS) === VERSION_PRECIOS) return false;
+      localStorage.removeItem(KEYS.precios);
+      localStorage.setItem(CLAVE_VERSION_PRECIOS, VERSION_PRECIOS);
+      // Deja marcado que la nube también debe quedar en cero.
+      localStorage.setItem(CLAVE_RESET_PRECIOS, '1');
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /** ¿Falta propagar el reinicio de precios a la nube? */
+  function resetPreciosPendiente() {
+    try {
+      return localStorage.getItem(CLAVE_RESET_PRECIOS) === '1';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function limpiarResetPrecios() {
+    try {
+      localStorage.removeItem(CLAVE_RESET_PRECIOS);
+    } catch (error) {
+      /* nada */
+    }
+  }
+
   function snapshot() {
     return { generado: new Date().toISOString(), ordenes: getOrdenes(), clientes: getClientes(), precios: getPrecios() };
   }
@@ -261,6 +298,9 @@ const Store = (() => {
     statsCliente,
     getPrecios,
     setPrecios,
+    migrarPrecios,
+    resetPreciosPendiente,
+    limpiarResetPrecios,
     claveTelefono,
     snapshot,
     reemplazarTodo

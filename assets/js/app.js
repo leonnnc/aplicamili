@@ -47,11 +47,6 @@
   };
   const capitalizar = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
   const mismoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  const aInputLocal = (d) => {
-    const p = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-  };
-
   function toast(mensaje) {
     const el = $('#toast');
     el.textContent = mensaje;
@@ -190,7 +185,7 @@
     renderClientes();
     renderResumen();
     renderBanner();
-    sugerirRecojo();
+    limpiarRecojo();
 
     if (!estado.temporizador) {
       estado.temporizador = setInterval(renderBanner, 60000);
@@ -677,9 +672,6 @@
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
-  // Turno que se propone al abrir el formulario (24 h = listo al día siguiente).
-  const HORAS_PROCESO = 24;
-
   const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
 
@@ -791,10 +783,6 @@
     $('#recojoHint').textContent = `${prefijo}${textoDias(diasDeProceso())} de proceso · listo el ${dia} a las ${hora}`;
   }
 
-  function ponerHoraRecojo(fecha) {
-    $('#horaRecojo').value = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`;
-  }
-
   /** El operador elige el día tocando la tarjeta. */
   function seleccionarDia(iso) {
     const hora = $('#horaRecojo').value || '08:00';
@@ -805,20 +793,15 @@
     actualizarAviso();
   }
 
-  function sugerirRecojo() {
-    // Ya no hay selector de tiempo de proceso: se sugiere el turno normal
-    // (24 horas) y el operador ajusta tocando el día en la tira.
-    const sugerida = calcularListo(new Date(), HORAS_PROCESO);
-    $('#recojo').value = aInputLocal(sugerida);
-    ponerHoraRecojo(sugerida);
+  /** Sin fecha propuesta: el operador elige el día en la tira.
+      Hasta que lo haga, la app no anuncia ningún recojo. */
+  function limpiarRecojo() {
+    $('#recojo').value = '';
+    estado.offsetSemana = 0;
     estado.recojoManual = false;
-
-    // Si la sugerencia cae fuera de la semana visible, movemos la tira.
-    const diferencia = Math.round((soloDia(sugerida) - soloDia(new Date())) / 86400000);
-    estado.offsetSemana = diferencia > 6 ? Math.floor(diferencia / 7) * 7 : 0;
-
+    $('#horaRecojo').value = '08:00';
     renderSemana();
-    actualizarHintRecojo(true);
+    $('#recojoHint').textContent = 'Elige el día de recojo en la tira';
     actualizarAviso();
   }
 
@@ -914,6 +897,15 @@
     campo.focus();
   }
 
+  /** Resalta la tira de días cuando falta elegir la fecha de recojo. */
+  function marcarSemanaInvalida() {
+    const caja = $('.semana');
+    if (!caja) return;
+    caja.classList.add('semana-invalida');
+    setTimeout(() => caja.classList.remove('semana-invalida'), 1800);
+    caja.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
   function validar() {
     const nombre = $('#cliNombre').value.trim();
     const telefono = $('#cliTelefono').value.trim();
@@ -946,12 +938,12 @@
     }
     const fecha = fechaRecojo();
     if (!fecha) {
-      marcarInvalido('#recojo');
-      toast('Define la fecha y hora de recojo');
+      marcarSemanaInvalida();
+      toast('Elige el día de recojo en la tira');
       return false;
     }
     if (fecha.getTime() < Date.now() - 5 * 60 * 1000) {
-      marcarInvalido('#recojo');
+      marcarSemanaInvalida();
       toast('La fecha de recojo ya pasó, elige otra');
       return false;
     }
@@ -1065,7 +1057,7 @@
     $('#cliHint').classList.remove('ok');
     renderItems();
     actualizarCodigoCliente();
-    sugerirRecojo();
+    limpiarRecojo();
     refrescarResumen();
   }
 
@@ -2647,6 +2639,9 @@
   /* ------------------------------- Arranque ----------------------------- */
 
   function init() {
+    // Descarta precios guardados por versiones anteriores: todo nace en 0.00.
+    Store.migrarPrecios();
+
     $('#formaPago').innerHTML = CONFIG.pagos.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
     $('#estadoPago').innerHTML = CONFIG.estadosPago.map((e) => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('');
     $('#estadoPago').value = 'pendiente';
@@ -2659,7 +2654,7 @@
     renderCategorias();
     renderCatalogo();
     renderItems();
-    sugerirRecojo();
+    limpiarRecojo();
     refrescarResumen();
     actualizarFechas();
     conectarSincronizacion();

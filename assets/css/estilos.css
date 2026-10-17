@@ -815,6 +815,12 @@ a.btn { text-decoration: none; }
   color: #fff;
 }
 
+.semana-invalida {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
 .semana-fuera {
   display: flex;
 }
