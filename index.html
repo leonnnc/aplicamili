@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0f766e" />
-  <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
-  <title>LavaMili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261017e" />
+  <meta name="description" content="Sistema de control de entradas y salidas para lavanderÃ­a: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
+  <title>LavaMili Â· Control de lavanderÃ­a</title>
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261017f" />
 </head>
 <body>
 
@@ -23,7 +23,7 @@
         </span>
         <div class="brand-text">
           <strong>LavaMili</strong>
-          <span>Lavandería &amp; tintorería</span>
+          <span>LavanderÃ­a &amp; tintorerÃ­a</span>
         </div>
       </div>
 
@@ -32,12 +32,12 @@
 
       <form id="formLogin" autocomplete="off" novalidate>
         <div class="field">
-          <label for="usuario">Correo electrónico</label>
+          <label for="usuario">Correo electrÃ³nico</label>
           <input id="usuario" name="usuario" type="email" placeholder="operador@lavamili.pe" autocomplete="username" autocapitalize="none" required />
         </div>
         <div class="field">
-          <label for="pin">Contraseña</label>
-          <input id="pin" name="pin" type="password" placeholder="Tu contraseña" autocomplete="current-password" required />
+          <label for="pin">ContraseÃ±a</label>
+          <input id="pin" name="pin" type="password" placeholder="Tu contraseÃ±a" autocomplete="current-password" required />
         </div>
         <p class="form-error" id="loginError" role="alert"></p>
         <button class="btn btn-primary btn-block" type="submit">Entrar al sistema</button>
@@ -57,10 +57,10 @@
       <div class="login-aside-inner">
         <p class="eyebrow">Flujo en mostrador</p>
         <ul class="mini-flow">
-          <li><span>1</span><div><strong>Identifica al cliente</strong><small>Teléfono, nombre y código único</small></div></li>
-          <li><span>2</span><div><strong>Selecciona el servicio</strong><small>Terno completo, incompleto, por kilo…</small></div></li>
+          <li><span>1</span><div><strong>Identifica al cliente</strong><small>TelÃ©fono, nombre y cÃ³digo Ãºnico</small></div></li>
+          <li><span>2</span><div><strong>Selecciona el servicio</strong><small>Terno completo, incompleto, por kiloâ€¦</small></div></li>
           <li><span>3</span><div><strong>Pesa frente al cliente</strong><small>El total se calcula al instante</small></div></li>
-          <li><span>4</span><div><strong>Programa y avisa</strong><small>Día y hora de recojo por WhatsApp</small></div></li>
+          <li><span>4</span><div><strong>Programa y avisa</strong><small>DÃ­a y hora de recojo por WhatsApp</small></div></li>
         </ul>
         <div class="login-ticket">
           <div class="login-ticket-top">
@@ -77,7 +77,7 @@
     </aside>
   </div>
 
-  <!-- ============================ APLICACIÓN ============================ -->
+  <!-- ============================ APLICACIÃ“N ============================ -->
   <div class="app oculto" id="app">
     <header class="topbar">
       <div class="topbar-inner">
@@ -98,13 +98,13 @@
         <nav class="tabs" aria-label="Secciones del sistema">
           <button class="tab is-active" data-vista="nuevo" type="button">Nuevo ingreso</button>
           <button class="tab" data-vista="tablero" type="button">Tablero</button>
-          <button class="tab" data-vista="ordenes" type="button">Órdenes</button>
+          <button class="tab" data-vista="ordenes" type="button">Ã“rdenes</button>
           <button class="tab" data-vista="clientes" type="button">Clientes</button>
           <button class="tab" data-vista="resumen" type="button">Resumen</button>
         </nav>
 
         <div class="topbar-right">
-          <span class="badge badge-code" id="syncEstado" data-estado="local" title="Estado de la sincronización">Local</span>
+          <span class="badge badge-code" id="syncEstado" data-estado="local" title="Estado de la sincronizaciÃ³n">Local</span>
           <span class="user-chip" id="usuarioChip"></span>
           <button class="btn btn-ghost" id="btnPrecios" type="button">Precios</button>
           <button class="btn btn-ghost" id="btnDatos" type="button">Datos</button>
@@ -135,7 +135,7 @@
           <div>
             <p class="eyebrow">Mostrador</p>
             <h1>Nuevo ingreso de prendas</h1>
-            <p class="muted">Registra al cliente, agrega los servicios, pesa las prendas frente a él y confirma el recojo.</p>
+            <p class="muted">Registra al cliente, agrega los servicios, pesa las prendas frente a Ã©l y confirma el recojo.</p>
           </div>
           <div class="fecha-hoy" id="fechaHoy"></div>
         </div>
@@ -149,27 +149,27 @@
                 <span class="step">1</span>
                 <div class="card-head-text">
                   <h2>Datos del cliente</h2>
-                  <p>El código se genera automáticamente y se reutiliza en cada visita.</p>
+                  <p>El cÃ³digo se genera automÃ¡ticamente y se reutiliza en cada visita.</p>
                 </div>
                 <span class="badge badge-code" id="cliCodigoChip">CLI-0001</span>
               </header>
 
               <div class="grid-2">
                 <div class="field">
-                  <label for="cliTelefono">Teléfono / WhatsApp <span class="req">*</span></label>
+                  <label for="cliTelefono">TelÃ©fono / WhatsApp <span class="req">*</span></label>
                   <input id="cliTelefono" type="tel" inputmode="tel" placeholder="987 654 321" autocomplete="off" />
-                  <p class="hint" id="cliHint">Si el número ya está registrado, cargamos sus datos.</p>
+                  <p class="hint" id="cliHint">Si el nÃºmero ya estÃ¡ registrado, cargamos sus datos.</p>
                 </div>
                 <div class="field">
                   <label for="cliNombre">Nombre y apellidos <span class="req">*</span></label>
                   <input id="cliNombre" type="text" placeholder="Ej. Ana Torres" autocomplete="off" />
                 </div>
                 <div class="field">
-                  <label for="cliEmail">Correo electrónico</label>
+                  <label for="cliEmail">Correo electrÃ³nico</label>
                   <input id="cliEmail" type="email" placeholder="cliente@correo.com" autocomplete="off" />
                 </div>
                 <div class="field">
-                  <label for="cliCodigo">Código de cliente</label>
+                  <label for="cliCodigo">CÃ³digo de cliente</label>
                   <input id="cliCodigo" type="text" readonly class="readonly" tabindex="-1" />
                   <p class="hint">Fijo para el cliente: no cambia entre servicios.</p>
                 </div>
@@ -184,16 +184,16 @@
                 <span class="step">2</span>
                 <div class="card-head-text">
                   <h2>Servicios y prendas</h2>
-                  <p>Toca un servicio del catálogo. Los servicios por peso se cobran por kilo.</p>
+                  <p>Toca un servicio del catÃ¡logo. Los servicios por peso se cobran por kilo.</p>
                 </div>
               </header>
 
-              <div class="chips" id="categorias" role="tablist" aria-label="Categorías de servicio"></div>
+              <div class="chips" id="categorias" role="tablist" aria-label="CategorÃ­as de servicio"></div>
               <div class="catalogo" id="catalogo"></div>
 
               <div class="items-head">
                 <h3>Detalle del servicio</h3>
-                <span class="muted small" id="itemsVacio">Aún no agregaste prendas.</span>
+                <span class="muted small" id="itemsVacio">AÃºn no agregaste prendas.</span>
               </div>
               <div class="items" id="items"></div>
             </section>
@@ -215,7 +215,7 @@
                 </div>
                 <div class="field">
                   <label for="descuento">Descuento (S/)</label>
-                  <input id="descuento" type="number" min="0" step="0.10" value="0" />
+                  <input id="descuento" type="number" min="0" step="0.01" value="0.00" inputmode="decimal" />
                 </div>
               </div>
 
@@ -229,7 +229,7 @@
                     <button type="button" class="semana-flecha" id="semanaNext" aria-label="Semana siguiente">&rsaquo;</button>
                   </div>
 
-                  <div class="semana-dias" id="semana" role="group" aria-label="Días disponibles para el recojo"></div>
+                  <div class="semana-dias" id="semana" role="group" aria-label="DÃ­as disponibles para el recojo"></div>
 
                   <div id="semanaFuera" class="semana-fuera oculto"></div>
 
@@ -248,22 +248,22 @@
                   <label for="tipoEntrega">Entrega del servicio</label>
                   <select id="tipoEntrega">
                     <option value="tienda">Recojo en tienda</option>
-                    <option value="domicilio">Envío a domicilio</option>
+                    <option value="domicilio">EnvÃ­o a domicilio</option>
                   </select>
                 </div>
                 <div class="field oculto" id="campoDireccion">
-                  <label for="direccionEntrega">Dirección de envío <span class="req">*</span></label>
-                  <input id="direccionEntrega" type="text" placeholder="Av. / calle, número, referencia" autocomplete="off" />
+                  <label for="direccionEntrega">DirecciÃ³n de envÃ­o <span class="req">*</span></label>
+                  <input id="direccionEntrega" type="text" placeholder="Av. / calle, nÃºmero, referencia" autocomplete="off" />
                 </div>
                 <div class="field oculto" id="campoCostoEnvio">
-                  <label for="costoEnvio">Costo de envío (S/)</label>
-                  <input id="costoEnvio" type="number" min="0" step="0.50" value="0" inputmode="decimal" />
+                  <label for="costoEnvio">Costo de envÃ­o (S/)</label>
+                  <input id="costoEnvio" type="number" min="0" step="0.01" value="0.00" inputmode="decimal" />
                 </div>
               </div>
 
               <div class="field mt-14">
                 <label for="notas">Observaciones</label>
-                <textarea id="notas" rows="2" placeholder="Manchas, prendas delicadas, instrucciones especiales…"></textarea>
+                <textarea id="notas" rows="2" placeholder="Manchas, prendas delicadas, instrucciones especialesâ€¦"></textarea>
               </div>
 
               <div class="aviso-preview" id="avisoPreview"></div>
@@ -285,7 +285,7 @@
                 <div><dt>Peso registrado</dt><dd id="sumPeso">0.00 kg</dd></div>
                 <div><dt>Subtotal</dt><dd id="sumSubtotal">S/ 0.00</dd></div>
                 <div><dt>Descuento</dt><dd id="sumDescuento">S/ 0.00</dd></div>
-                <div id="filaEnvio" class="oculto"><dt>Envío</dt><dd id="sumEnvio">S/ 0.00</dd></div>
+                <div id="filaEnvio" class="oculto"><dt>EnvÃ­o</dt><dd id="sumEnvio">S/ 0.00</dd></div>
               </dl>
 
               <div class="total-box">
@@ -300,7 +300,7 @@
                 </div>
 
                 <div class="field">
-                  <label for="estadoPago">¿Se concretó el pago?</label>
+                  <label for="estadoPago">Â¿Se concretÃ³ el pago?</label>
                   <select id="estadoPago"></select>
                 </div>
 
@@ -311,7 +311,7 @@
 
                 <div class="field oculto" id="campoAdelanto">
                   <label for="montoAdelanto">Monto del adelanto (S/)</label>
-                  <input id="montoAdelanto" type="number" min="0" step="0.50" value="0" inputmode="decimal" />
+                  <input id="montoAdelanto" type="number" min="0" step="0.01" value="0.00" inputmode="decimal" />
                   <p class="hint" id="adelantoHint">El saldo restante queda por cobrar.</p>
                 </div>
 
@@ -325,7 +325,7 @@
 
               <button class="btn btn-primary btn-block" id="btnRegistrar" type="button">Registrar y avisar por WhatsApp</button>
               <button class="btn btn-outline btn-block" id="btnRegistrarSin" type="button">Registrar sin enviar</button>
-              <p class="hint center">El aviso incluye el día y la hora de recojo.</p>
+              <p class="hint center">El aviso incluye el dÃ­a y la hora de recojo.</p>
             </div>
           </aside>
         </div>
@@ -337,7 +337,7 @@
           <div>
             <p class="eyebrow">Flujo de servicios</p>
             <h1>Tablero de servicios</h1>
-            <p class="muted">Ingreso, proceso, listo, almacén y recojo de cada servicio en un solo vistazo.</p>
+            <p class="muted">Ingreso, proceso, listo, almacÃ©n y recojo de cada servicio en un solo vistazo.</p>
           </div>
           <div class="fecha-hoy" id="fechaHoyTablero"></div>
         </div>
@@ -346,16 +346,16 @@
         <div class="kanban" id="kanban"></div>
       </section>
 
-      <!-- --------------------------- ÓRDENES --------------------------- -->
+      <!-- --------------------------- Ã“RDENES --------------------------- -->
       <section class="vista" id="vista-ordenes">
         <div class="view-head">
           <div>
             <p class="eyebrow">Historial</p>
-            <h1>Órdenes registradas</h1>
-            <p class="muted">Busca por código, cliente o teléfono. Reenvía el aviso o marca la entrega.</p>
+            <h1>Ã“rdenes registradas</h1>
+            <p class="muted">Busca por cÃ³digo, cliente o telÃ©fono. ReenvÃ­a el aviso o marca la entrega.</p>
           </div>
           <div class="toolbar">
-            <input id="buscarOrden" class="input-buscar" type="search" placeholder="Buscar código, cliente o teléfono" aria-label="Buscar órdenes" />
+            <input id="buscarOrden" class="input-buscar" type="search" placeholder="Buscar cÃ³digo, cliente o telÃ©fono" aria-label="Buscar Ã³rdenes" />
             <select id="filtroEstado" aria-label="Filtrar por estado">
               <option value="">Todos los estados</option>
             </select>
@@ -367,7 +367,7 @@
             <table class="tabla">
               <thead>
                 <tr>
-                  <th>Código</th>
+                  <th>CÃ³digo</th>
                   <th>Cliente</th>
                   <th>Ingreso</th>
                   <th>Recojo</th>
@@ -381,9 +381,9 @@
             </table>
           </div>
           <div class="empty oculto" id="ordenesVacio">
-            <strong>Todavía no hay órdenes</strong>
-            <p>Registra el primer ingreso desde la pestaña «Nuevo ingreso».</p>
-            <button class="btn btn-outline btn-sm" id="btnEjemplos" type="button">Cargar 6 órdenes de ejemplo</button>
+            <strong>TodavÃ­a no hay Ã³rdenes</strong>
+            <p>Registra el primer ingreso desde la pestaÃ±a Â«Nuevo ingresoÂ».</p>
+            <button class="btn btn-outline btn-sm" id="btnEjemplos" type="button">Cargar 6 Ã³rdenes de ejemplo</button>
           </div>
         </div>
       </section>
@@ -394,10 +394,10 @@
           <div>
             <p class="eyebrow">Base de datos</p>
             <h1>Clientes</h1>
-            <p class="muted">Cada cliente conserva su código aunque cambie de servicio.</p>
+            <p class="muted">Cada cliente conserva su cÃ³digo aunque cambie de servicio.</p>
           </div>
           <div class="toolbar">
-            <input id="buscarCliente" class="input-buscar" type="search" placeholder="Buscar cliente o teléfono" aria-label="Buscar clientes" />
+            <input id="buscarCliente" class="input-buscar" type="search" placeholder="Buscar cliente o telÃ©fono" aria-label="Buscar clientes" />
           </div>
         </div>
 
@@ -406,13 +406,13 @@
             <table class="tabla">
               <thead>
                 <tr>
-                  <th>Código</th>
+                  <th>CÃ³digo</th>
                   <th>Cliente</th>
-                  <th>Teléfono</th>
+                  <th>TelÃ©fono</th>
                   <th>Correo</th>
-                  <th class="right">Órdenes</th>
+                  <th class="right">Ã“rdenes</th>
                   <th class="right">Consumo</th>
-                  <th>Última visita</th>
+                  <th>Ãšltima visita</th>
                 </tr>
               </thead>
               <tbody id="tablaClientes"></tbody>
@@ -420,7 +420,7 @@
           </div>
           <div class="empty oculto" id="clientesVacio">
             <strong>Sin clientes registrados</strong>
-            <p>Se crean automáticamente al registrar el primer servicio.</p>
+            <p>Se crean automÃ¡ticamente al registrar el primer servicio.</p>
           </div>
         </div>
       </section>
@@ -429,8 +429,8 @@
       <section class="vista" id="vista-resumen">
         <div class="view-head">
           <div>
-            <p class="eyebrow">Operación de hoy</p>
-            <h1>Resumen del día</h1>
+            <p class="eyebrow">OperaciÃ³n de hoy</p>
+            <h1>Resumen del dÃ­a</h1>
             <p class="muted">Ingresos, kilos procesados y prendas pendientes de recojo.</p>
           </div>
           <div class="fecha-hoy" id="fechaHoyResumen"></div>
@@ -442,8 +442,8 @@
           <div class="card">
             <header class="card-head">
               <div class="card-head-text">
-                <h2>Ingresos de los últimos 7 días</h2>
-                <p>Monto total facturado por día.</p>
+                <h2>Ingresos de los Ãºltimos 7 dÃ­as</h2>
+                <p>Monto total facturado por dÃ­a.</p>
               </div>
             </header>
             <div class="chart" id="chartSemana"></div>
@@ -479,9 +479,9 @@
     <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="preciosTitulo">
       <header class="drawer-head">
         <div class="card-head-text">
-          <p class="eyebrow">Configuración</p>
+          <p class="eyebrow">ConfiguraciÃ³n</p>
           <h2 id="preciosTitulo">Precios de servicios</h2>
-          <p class="muted small">Ajusta la tarifa de cada servicio. Se aplica al catálogo del mostrador.</p>
+          <p class="muted small">Ajusta la tarifa de cada servicio. Se aplica al catÃ¡logo del mostrador.</p>
         </div>
         <button class="modal-close" id="cerrarPrecios" type="button" aria-label="Cerrar panel de precios">&times;</button>
       </header>
@@ -502,26 +502,26 @@
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo" aria-hidden="true">
     <div class="modal-backdrop" data-accion="cerrar"></div>
     <div class="modal-card" role="document">
-      <button class="modal-close" id="modalCerrar" type="button" aria-label="Cerrar">×</button>
+      <button class="modal-close" id="modalCerrar" type="button" aria-label="Cerrar">Ã—</button>
       <div id="modalContenido"></div>
     </div>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <!-- Comprobante para impresión (solo visible al imprimir) -->
+  <!-- Comprobante para impresiÃ³n (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261017e"></script>
-  <script src="assets/js/firebase-config.js?v=20261017e"></script>
-  <script src="assets/js/store.js?v=20261017e"></script>
+  <script src="assets/js/config.js?v=20261017f"></script>
+  <script src="assets/js/firebase-config.js?v=20261017f"></script>
+  <script src="assets/js/store.js?v=20261017f"></script>
 
-  <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
+  <!-- SDK de Firebase (compat) â€” se cargan siempre; si la config estÃ¡ vacÃ­a no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261017e"></script>
-  <script defer src="assets/js/app.js?v=20261017e"></script>
+  <script defer src="assets/js/sync.js?v=20261017f"></script>
+  <script defer src="assets/js/app.js?v=20261017f"></script>
 </body>
 </html>

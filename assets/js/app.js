@@ -527,7 +527,7 @@
           </div>
           <div class="item-tarifa">
             <label for="tar-${item.key}">${esPeso ? 'S/ por kg' : 'Precio'}</label>
-            <input id="tar-${item.key}" type="number" data-campo="tarifa" value="${item.tarifa}" min="0" step="0.10" inputmode="decimal" />
+            <input id="tar-${item.key}" type="number" data-campo="tarifa" value="${(Number(item.tarifa) || 0).toFixed(2)}" min="0" step="0.01" inputmode="decimal" />
           </div>
           <div class="item-sub"><span>Subtotal</span><strong data-subtotal>${money(calcularItem(item).subtotal)}</strong></div>
           <button class="icon-btn" type="button" data-accion="quitar" aria-label="Quitar ${esc(item.nombre)}">&times;</button>
@@ -1040,11 +1040,11 @@
       $(sel).value = '';
       $(sel).classList.remove('invalid');
     });
-    $('#descuento').value = '0';
+    $('#descuento').value = '0.00';
     $('#tipoEntrega').value = 'tienda';
-    $('#costoEnvio').value = '0';
+    $('#costoEnvio').value = '0.00';
     $('#estadoPago').value = 'pendiente';
-    $('#montoAdelanto').value = '0';
+    $('#montoAdelanto').value = '0.00';
     $('#campoDireccion').classList.add('oculto');
     $('#campoCostoEnvio').classList.add('oculto');
     $('#clienteEncontrado').classList.add('oculto');
@@ -2335,6 +2335,14 @@
       borradorPrecios[campo.dataset.precio] = campo.value;
     });
 
+    // Los precios del panel también se normalizan a dos decimales al salir.
+    $('#listaPrecios').addEventListener('blur', (evento) => {
+      const campo = evento.target.closest('[data-precio]');
+      if (!campo || !borradorPrecios) return;
+      campo.value = Math.max(parseNum(campo.value), 0).toFixed(2);
+      borradorPrecios[campo.dataset.precio] = campo.value;
+    }, true);
+
     $$('.tab').forEach((tab) => tab.addEventListener('click', () => cambiarVista(tab.dataset.vista)));
 
     // Catálogo
@@ -2366,6 +2374,19 @@
         fila.insertAdjacentHTML('beforeend', `<p class="item-note">Se aplica el mínimo de ${item.minPeso} kg para este servicio.</p>`);
       }
     });
+
+    // Al salir del campo, el precio unitario queda con dos decimales.
+    $('#items').addEventListener('blur', (evento) => {
+      const campo = evento.target.closest('[data-campo="tarifa"]');
+      if (!campo) return;
+      const fila = campo.closest('.item');
+      const item = estado.items.find((i) => i.key === fila.dataset.key);
+      if (!item) return;
+      campo.value = Math.max(parseNum(campo.value), 0).toFixed(2);
+      item.tarifa = campo.value;
+      refrescarSubtotales();
+      refrescarResumen();
+    }, true);
 
     $('#items').addEventListener('click', (evento) => {
       const boton = evento.target.closest('[data-accion="quitar"]');
@@ -2443,8 +2464,17 @@
     $('#montoAdelanto').addEventListener('blur', () => {
       const total = calcularTotales().total;
       const monto = Math.min(Math.max(parseNum($('#montoAdelanto').value), 0), total);
-      $('#montoAdelanto').value = monto ? monto.toFixed(2) : '0';
+      $('#montoAdelanto').value = monto.toFixed(2);
       refrescarResumen();
+    });
+
+    // Todos los montos editables se muestran siempre con dos decimales.
+    ['#descuento', '#costoEnvio'].forEach((sel) => {
+      $(sel).addEventListener('blur', () => {
+        const campo = $(sel);
+        campo.value = Math.max(parseNum(campo.value), 0).toFixed(2);
+        refrescarResumen();
+      });
     });
 
     $('#btnRegistrar').addEventListener('click', () => registrar(true));
