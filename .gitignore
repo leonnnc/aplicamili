@@ -1,0 +1,8 @@
+# Evidencia de pruebas / capturas de verificacion (no forma parte de la app)
+_verificacion/
+shots/
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
