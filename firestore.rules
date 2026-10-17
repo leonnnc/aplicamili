@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// LavaMili · Reglas de Firestore
+// Pegar en: Consola de Firebase → Firestore Database → Reglas → Publicar
+//
+// Modelo de datos:
+//   negocios/{negocioId}/ordenes/{ordenId}
+//   negocios/{negocioId}/clientes/{clienteId}
+//   negocios/{negocioId}/ajustes/precios
+//   negocios/{negocioId}/usuarios/{uid}   (nombre, rol, correo)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /negocios/{negocioId} {
+
+      // Solo entra quien tiene ficha de operador en este negocio.
+      function esMiembro() {
+        return request.auth != null
+          && exists(/databases/$(database)/documents/negocios/$(negocioId)/usuarios/$(request.auth.uid));
+      }
+
+      function rol() {
+        return get(/databases/$(database)/documents/negocios/$(negocioId)/usuarios/$(request.auth.uid)).data.rol;
+      }
+
+      // Perfil del operador: cada uno lee el suyo. Se crea solo la primera vez,
+      // siempre como "Operador". Los ascensos se hacen desde la consola.
+      match /usuarios/{uid} {
+        allow get: if request.auth != null && request.auth.uid == uid;
+        allow list: if false;
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.rol == 'Operador'
+          && request.resource.data.correo == request.auth.token.email;
+        allow update, delete: if false;
+      }
+
+      match /ordenes/{ordenId} {
+        allow read, write: if esMiembro();
+      }
+
+      match /clientes/{clienteId} {
+        allow read, write: if esMiembro();
+      }
+
+      // Precios: cualquier operador los ajusta desde el panel "Precios".
+      match /ajustes/{docId} {
+        allow read, write: if esMiembro();
+        // Si quieres que solo la administradora los cambie, reemplaza la línea
+        // anterior por estas dos:
+        // allow read: if esMiembro();
+        // allow write: if esMiembro() && rol() == 'Administrador';
+      }
+    }
+  }
+}

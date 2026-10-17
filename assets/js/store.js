@@ -15,6 +15,12 @@ const Store = (() => {
   const memoria = {};
   let disponible = true;
 
+  /* Avisos de escritura: la capa de sincronización (sync.js) los escucha para
+     publicar los cambios en Firestore. `silencio` evita re-publicar lo que
+     llega desde la nube. */
+  const oyentes = new Set();
+  let silencio = false;
+
   /** Id único incluso si se crean varios registros en el mismo milisegundo. */
   const nuevoId = (prefijo) => `${prefijo}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
@@ -47,6 +53,33 @@ const Store = (() => {
       disponible = false;
       memoria[clave] = crudo;
       console.warn('Almacenamiento lleno o bloqueado, usando memoria', error);
+    }
+    if (!silencio) {
+      oyentes.forEach((fn) => {
+        try {
+          fn(clave, valor);
+        } catch (error) {
+          console.warn('Oyente de escritura falló', error);
+        }
+      });
+    }
+  }
+
+  /** Registra un callback que se dispara en cada escritura local. */
+  function alEscribir(fn) {
+    oyentes.add(fn);
+    return () => oyentes.delete(fn);
+  }
+
+  /** Escribe el espejo local con datos que vienen de la nube, sin re-emitir. */
+  function aplicarRemoto(datos) {
+    silencio = true;
+    try {
+      if (Array.isArray(datos.ordenes)) escribir(KEYS.ordenes, datos.ordenes);
+      if (Array.isArray(datos.clientes)) escribir(KEYS.clientes, datos.clientes);
+      if (datos.precios && typeof datos.precios === 'object') escribir(KEYS.precios, datos.precios);
+    } finally {
+      silencio = false;
     }
   }
 
@@ -210,6 +243,9 @@ const Store = (() => {
 
   return {
     disponible,
+    KEYS,
+    alEscribir,
+    aplicarRemoto,
     getOrdenes,
     setOrdenes,
     getOrden,

@@ -123,28 +123,49 @@
 
   /* ------------------------------ Sesión -------------------------------- */
 
-  function iniciarSesion(evento) {
-    evento.preventDefault();
-    const usuario = $('#usuario').value.trim().toLowerCase();
-    const pin = $('#pin').value.trim();
-    const encontrado = CONFIG.operadores.find((o) => o.usuario === usuario && o.pin === pin);
+  /** El login vive en Firebase Auth; el usuario/PIN local queda para desarrollo. */
+  const usaFirebaseAuth = () =>
+    Sync.hayNube && (typeof FIREBASE_LOGIN_OBLIGATORIO === 'undefined' || FIREBASE_LOGIN_OBLIGATORIO);
 
-    if (!encontrado) {
-      $('#loginError').textContent = 'Usuario o PIN incorrecto. Verifica tus datos.';
+  async function iniciarSesion(evento) {
+    evento.preventDefault();
+    const usuario = $('#usuario').value.trim();
+    const clave = $('#pin').value.trim();
+    const boton = $('#formLogin button[type="submit"]');
+    const textoBoton = boton ? boton.textContent : '';
+
+    if (boton) {
+      boton.disabled = true;
+      boton.textContent = 'Verificando…';
+    }
+
+    try {
+      if (usaFirebaseAuth()) {
+        estado.operador = await Sync.entrar(usuario, clave);
+      } else {
+        const encontrado = CONFIG.operadores.find((o) => o.usuario === usuario.toLowerCase() && o.pin === clave);
+        if (!encontrado) throw new Error('Usuario o PIN incorrecto. Verifica tus datos.');
+        estado.operador = { usuario: encontrado.usuario, nombre: encontrado.nombre, rol: encontrado.rol };
+      }
+
+      try {
+        sessionStorage.setItem(SESION_KEY, JSON.stringify(estado.operador));
+      } catch (error) {
+        /* modo privado: la sesión vive solo en memoria */
+      }
+      $('#loginError').textContent = '';
+      $('#formLogin').reset();
+      entrarAlSistema();
+    } catch (error) {
+      $('#loginError').textContent = (error && error.message) || 'No se pudo iniciar sesión.';
       $('#pin').value = '';
       $('#pin').focus();
-      return;
+    } finally {
+      if (boton) {
+        boton.disabled = false;
+        boton.textContent = textoBoton || 'Entrar al sistema';
+      }
     }
-
-    estado.operador = { usuario: encontrado.usuario, nombre: encontrado.nombre, rol: encontrado.rol };
-    try {
-      sessionStorage.setItem(SESION_KEY, JSON.stringify(estado.operador));
-    } catch (error) {
-      /* modo privado: la sesión vive solo en memoria */
-    }
-    $('#loginError').textContent = '';
-    $('#formLogin').reset();
-    entrarAlSistema();
   }
 
   function entrarAlSistema() {
@@ -170,6 +191,7 @@
     try {
       sessionStorage.removeItem(SESION_KEY);
     } catch (error) { /* nada */ }
+    if (Sync.hayNube) Sync.salir();
     estado.operador = null;
     estado.items = [];
     if (estado.temporizador) {
@@ -182,6 +204,8 @@
   }
 
   function restaurarSesion() {
+    // Con Firebase la sesión la restaura el SDK por su cuenta (onAuthStateChanged).
+    if (Sync.hayNube) return;
     try {
       const crudo = sessionStorage.getItem(SESION_KEY);
       if (!crudo) return;
@@ -191,6 +215,64 @@
         entrarAlSistema();
       }
     } catch (error) { /* sin sesión */ }
+  }
+
+  /* --------------------------- Sincronización --------------------------- */
+
+  /** Vuelve a pintar con lo que acaba de llegar de Firestore. */
+  function refrescarDesdeNube() {
+    if (!estado.operador) return;
+    renderCatalogo();
+    renderItems();
+    refrescarResumen();
+    renderOrdenes();
+    renderClientes();
+    renderResumen();
+    renderBanner();
+    if (estado.vista === 'tablero') renderTablero();
+  }
+
+  function pintarEstadoSync(info, vista) {
+    const el = $('#syncEstado');
+    if (!el) return;
+    el.textContent = vista.texto;
+    el.title = vista.titulo;
+    el.dataset.estado = info.modo === 'nube' && !info.conectado ? 'offline' : info.modo;
+  }
+
+  /** En modo local el campo vuelve a ser usuario + PIN (solo desarrollo). */
+  function ajustarFormularioLogin() {
+    const nota = $('#loginModo');
+    if (usaFirebaseAuth()) {
+      if (nota) nota.textContent = '';
+      return;
+    }
+    const campo = $('#usuario');
+    campo.type = 'text';
+    campo.placeholder = 'Tu usuario';
+    campo.removeAttribute('autocomplete');
+    const etiqueta = campo.closest('.field') && campo.closest('.field').querySelector('label');
+    if (etiqueta) etiqueta.textContent = 'Usuario';
+    $('#pin').placeholder = 'PIN de operador';
+    if (nota) nota.textContent = 'Modo local: Firebase no está configurado. Los datos quedan solo en este navegador.';
+  }
+
+  function conectarSincronizacion() {
+    ajustarFormularioLogin();
+
+    Sync.onSesion((perfil) => {
+      if (!perfil) return;
+      estado.operador = perfil;
+      try {
+        sessionStorage.setItem(SESION_KEY, JSON.stringify(perfil));
+      } catch (error) { /* modo privado */ }
+      $('#loginError').textContent = '';
+      entrarAlSistema();
+    });
+
+    Sync.onDatos(refrescarDesdeNube);
+    Sync.onEstado(pintarEstadoSync);
+    Sync.iniciar();
   }
 
   /* ------------------------------ Navegación ---------------------------- */
@@ -1862,13 +1944,6 @@
 
   function conectarEventos() {
     $('#formLogin').addEventListener('submit', iniciarSesion);
-    $$('[data-demo]').forEach((boton) => {
-      boton.addEventListener('click', () => {
-        $('#usuario').value = boton.dataset.demo;
-        $('#pin').value = boton.dataset.demo === 'mili' ? '1234' : '2024';
-        $('#usuario').focus();
-      });
-    });
 
     $('#btnSalir').addEventListener('click', cerrarSesion);
     $('#btnDatos').addEventListener('click', abrirDatos);
@@ -2119,6 +2194,7 @@
     sugerirRecojo();
     refrescarResumen();
     actualizarFechas();
+    conectarSincronizacion();
     restaurarSesion();
 
     if (!Store.disponible) {
