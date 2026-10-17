@@ -677,6 +677,9 @@
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
+  // Turno que se propone al abrir el formulario (24 h = listo al día siguiente).
+  const HORAS_PROCESO = 24;
+
   const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
 
@@ -708,6 +711,15 @@
   function textoDias(dias) {
     if (dias <= 0) return 'mismo día';
     return dias === 1 ? '1 día' : `${dias} días`;
+  }
+
+  /** Etiqueta del proceso según el día elegido en la tira. */
+  function procesoDeDias(dias) {
+    if (dias <= 0) return { id: 'express', nombre: 'Mismo día' };
+    if (dias === 1) return { id: 'normal', nombre: '24 horas' };
+    if (dias === 2) return { id: 'dosdias', nombre: '48 horas' };
+    if (dias === 3) return { id: 'tresdias', nombre: '72 horas' };
+    return { id: 'normal', nombre: `${dias} días` };
   }
 
   /** Pinta la semana visible: hoy primero, el día de recojo resaltado y los
@@ -794,8 +806,9 @@
   }
 
   function sugerirRecojo() {
-    const proceso = CONFIG.tiempos.find((t) => t.id === $('#proceso').value) || CONFIG.tiempos[1];
-    const sugerida = calcularListo(new Date(), proceso.horas);
+    // Ya no hay selector de tiempo de proceso: se sugiere el turno normal
+    // (24 horas) y el operador ajusta tocando el día en la tira.
+    const sugerida = calcularListo(new Date(), HORAS_PROCESO);
     $('#recojo').value = aInputLocal(sugerida);
     ponerHoraRecojo(sugerida);
     estado.recojoManual = false;
@@ -957,7 +970,7 @@
 
     const totales = calcularTotales();
     const pago = calcularPago(totales.total);
-    const proceso = CONFIG.tiempos.find((t) => t.id === $('#proceso').value) || CONFIG.tiempos[1];
+    const proceso = procesoDeDias(diasDeProceso());
     const recojo = fechaRecojo();
     const nombre = $('#cliNombre').value.trim();
     const telefono = $('#cliTelefono').value.trim();
@@ -2406,7 +2419,6 @@
     $('#cliNombre').addEventListener('input', actualizarAviso);
 
     // Recojo y entrega
-    $('#proceso').addEventListener('change', sugerirRecojo);
     $('#recojo').addEventListener('change', () => {
       estado.recojoManual = true;
       actualizarAviso();
@@ -2635,8 +2647,6 @@
   /* ------------------------------- Arranque ----------------------------- */
 
   function init() {
-    $('#proceso').innerHTML = CONFIG.tiempos.map((t) => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
-    $('#proceso').value = 'normal';
     $('#formaPago').innerHTML = CONFIG.pagos.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
     $('#estadoPago').innerHTML = CONFIG.estadosPago.map((e) => `<option value="${e.id}">${esc(e.nombre)}</option>`).join('');
     $('#estadoPago').value = 'pendiente';
