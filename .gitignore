@@ -1,6 +1,8 @@
 # Evidencia de pruebas / capturas de verificacion (no forma parte de la app)
 _verificacion/
 shots/
+/*.png
+/*.jpg
 
 # Sistema
 Thumbs.db
