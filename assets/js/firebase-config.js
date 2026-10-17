@@ -1,20 +1,20 @@
 /* ==========================================================================
    LavaMili · Configuración de Firebase
    --------------------------------------------------------------------------
-   Pega aquí los valores de tu proyecto. Los encuentras en:
-   Consola de Firebase → ⚙ Configuración del proyecto → Tus apps → SDK setup.
+   Valores del proyecto "aplicalav". Estas claves son públicas por diseño
+   (viajan en el navegador); la seguridad real está en firestore.rules y en
+   Firebase Authentication.
 
-   Mientras estos campos estén vacíos la app funciona en MODO LOCAL
-   (localStorage, como antes) y no intenta conectarse a la nube.
+   Si dejas los campos vacíos, la app funciona en MODO LOCAL (localStorage).
    ========================================================================== */
 
 const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyCIZ50kwN3pgSO5guZxIQVAnDESRnsmCBU",
+  authDomain: "aplicalav.firebaseapp.com",
+  projectId: "aplicalav",
+  storageBucket: "aplicalav.firebasestorage.app",
+  messagingSenderId: "350151186821",
+  appId: "1:350151186821:web:3752392eaf8af072c8ccec"
 };
 
 /* Identificador del negocio en Firestore. Todas las colecciones viven en

@@ -253,7 +253,9 @@ const Sync = (() => {
       "auth/user-disabled": "Esta cuenta está deshabilitada.",
       "auth/too-many-requests": "Demasiados intentos. Espera unos minutos.",
       "auth/network-request-failed": "Sin conexión. Revisa tu internet e inténtalo otra vez.",
-      "auth/operation-not-allowed": "El acceso con correo y contraseña no está habilitado en Firebase."
+      "auth/operation-not-allowed": "El acceso con correo y contraseña no está habilitado en Firebase.",
+      "auth/configuration-not-found": "Falta habilitar Authentication (correo y contraseña) en la consola de Firebase.",
+      "auth/api-key-not-valid": "La apiKey de firebase-config.js no es válida para este proyecto."
     };
     if (mensajes[codigo]) return mensajes[codigo];
     if (error && error.message) return error.message;
