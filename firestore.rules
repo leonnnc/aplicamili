@@ -44,13 +44,18 @@ service cloud.firestore {
         allow read, write: if esMiembro();
       }
 
-      // Precios: cualquier operador los ajusta desde el panel "Precios".
+      // Ajustes del negocio:
+      //   ajustes/precios       → { mapa: { idServicio: tarifa } }
+      //   ajustes/autorizacion  → { datos: { codigo, autor, creada, expira } }
+      //   ajustes/solicitudes   → { datos: [ pedidos de cambio ] }
+      //   ajustes/auditoria     → { datos: [ cambios de tarifa ] }
+      //
+      // Escribe cualquier miembro porque el código de urgencia lo valida la
+      // aplicación: el mostrador publica el cambio ya autorizado. Para candar
+      // los precios en el servidor haría falta una Cloud Function que valide
+      // el código; una regla sola también bloquearía el desbloqueo de urgencia.
       match /ajustes/{docId} {
         allow read, write: if esMiembro();
-        // Si quieres que solo la administradora los cambie, reemplaza la línea
-        // anterior por estas dos:
-        // allow read: if esMiembro();
-        // allow write: if esMiembro() && rol() == 'Administrador';
       }
     }
   }

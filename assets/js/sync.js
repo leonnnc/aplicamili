@@ -68,6 +68,11 @@ const Sync = (() => {
 
   const coleccion = (nombre) => db.collection("negocios").doc(negocioId).collection(nombre);
   const docPrecios = () => db.collection("negocios").doc(negocioId).collection("ajustes").doc("precios");
+  const docAjuste = (nombre) => db.collection("negocios").doc(negocioId).collection("ajustes").doc(nombre);
+
+  /* Último valor publicado/leído de los ajustes que no son el tarifario:
+     código de autorización vigente, solicitudes de cambio y auditoría. */
+  const ultimoAjuste = { autorizacion: undefined, solicitudes: undefined, auditoria: undefined };
 
   function leerLocal(nombre) {
     if (nombre === "ordenes") return Store.getOrdenes();
@@ -130,6 +135,72 @@ const Sync = (() => {
     if (!forzar && JSON.stringify(ultimo.precios || {}) === JSON.stringify(mapa || {})) return;
     ultimo.precios = mapa || {};
     publicarLote(db.batch().set(docPrecios(), { mapa: mapa || {}, actualizado: new Date().toISOString() }));
+  }
+
+  /* Ajustes sueltos (autorización, solicitudes, auditoría). Se guardan como
+     `{ datos, actualizado }` en negocios/{id}/ajustes/{nombre}. */
+  function publicarAjuste(nombre, datos) {
+    if (!db || !usuario) return;
+    const valor = datos === undefined ? null : datos;
+    if (JSON.stringify(ultimoAjuste[nombre]) === JSON.stringify(valor)) return;
+    ultimoAjuste[nombre] = valor;
+    publicarLote(db.batch().set(docAjuste(nombre), { datos: valor, actualizado: new Date().toISOString() }));
+  }
+
+  /** Une dos listas por `id`; lo local gana si hay empate. */
+  function unirPorId(remotos, locales) {
+    const mapa = new Map();
+    (remotos || []).forEach((item) => {
+      if (item && item.id) mapa.set(item.id, item);
+    });
+    (locales || []).forEach((item) => {
+      if (item && item.id) mapa.set(item.id, { ...(mapa.get(item.id) || {}), ...item });
+    });
+    return [...mapa.values()].sort((a, b) => String(b.creada || b.fecha || "").localeCompare(String(a.creada || a.fecha || "")));
+  }
+
+  function leerAjusteLocal(nombre) {
+    if (nombre === "autorizacion") return Store.getAutorizacion();
+    if (nombre === "solicitudes") return Store.getSolicitudes();
+    if (nombre === "auditoria") return Store.getAuditoria();
+    return null;
+  }
+
+  function escucharAjuste(nombre) {
+    return docAjuste(nombre).onSnapshot({ includeMetadataChanges: true }, (snap) => {
+      estado.conectado = !snap.metadata.fromCache;
+      const remoto = snap.exists ? snap.data().datos : undefined;
+
+      if (nombre === "autorizacion") {
+        const local = Store.getAutorizacion();
+        const creadoRemoto = remoto && remoto.creada ? Date.parse(remoto.creada) : 0;
+        const creadoLocal = local && local.creada ? Date.parse(local.creada) : 0;
+
+        if (local && creadoLocal > creadoRemoto) {
+          // Este equipo tiene un código más nuevo: se publica y manda.
+          encolar(() => publicarAjuste("autorizacion", local));
+        } else if (JSON.stringify(local) !== JSON.stringify(remoto || null)) {
+          ultimoAjuste.autorizacion = remoto || null;
+          Store.aplicarRemoto({ autorizacion: remoto || null });
+          avisarDatos();
+        }
+        avisarEstado();
+        return;
+      }
+
+      const locales = leerAjusteLocal(nombre) || [];
+      const unidos = unirPorId(remoto || [], locales);
+      const remotoOrdenado = unirPorId(remoto || [], []);
+      if (JSON.stringify(unidos) !== JSON.stringify(remotoOrdenado)) {
+        encolar(() => publicarAjuste(nombre, unidos));
+      }
+      if (JSON.stringify(unidos) !== JSON.stringify(locales)) {
+        ultimoAjuste[nombre] = unidos;
+        Store.aplicarRemoto({ [nombre]: unidos });
+        avisarDatos();
+      }
+      avisarEstado();
+    }, (error) => falloEscucha(error));
   }
 
   /* ------------------------------ Escuchar ------------------------------ */
@@ -209,7 +280,14 @@ const Sync = (() => {
 
   function iniciarEscuchas() {
     detenerEscuchas();
-    cancelar = [escucharColeccion("ordenes"), escucharColeccion("clientes"), escucharPrecios()];
+    cancelar = [
+      escucharColeccion("ordenes"),
+      escucharColeccion("clientes"),
+      escucharPrecios(),
+      escucharAjuste("autorizacion"),
+      escucharAjuste("solicitudes"),
+      escucharAjuste("auditoria")
+    ];
   }
 
   function detenerEscuchas() {
@@ -323,14 +401,25 @@ const Sync = (() => {
 
       try { await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (error) { /* usa la de por defecto */ }
 
-      try {
-        await db.enableIndexedDbPersistence();
-      } catch (error) {
-        if (error.code === "failed-precondition") {
-          console.warn("[sync] Hay varias pestañas abiertas; la caché offline queda en la primera.");
-        } else if (error.code !== "unimplemented") {
-          console.warn("[sync] Sin caché offline de Firestore", error);
+      /* Caché offline de Firestore. Según la versión del SDK el método puede
+         llamarse de una forma u otra, y en las versiones nuevas ya no existe:
+         se comprueba antes de llamarlo para no ensuciar la consola. */
+      let activarCache = null;
+      if (typeof db.enableIndexedDbPersistence === "function") activarCache = db.enableIndexedDbPersistence.bind(db);
+      else if (typeof db.enablePersistence === "function") activarCache = db.enablePersistence.bind(db);
+
+      if (activarCache) {
+        try {
+          await activarCache();
+        } catch (error) {
+          if (error.code === "failed-precondition") {
+            console.warn("[sync] Hay varias pestañas abiertas; la caché offline queda en la primera.");
+          } else if (error.code !== "unimplemented") {
+            console.warn("[sync] Sin caché offline de Firestore", error);
+          }
         }
+      } else {
+        console.info("[sync] Esta versión del SDK de Firestore no expone caché offline; se trabaja con localStorage.");
       }
 
       Store.alEscribir((clave, valor) => {
@@ -338,6 +427,9 @@ const Sync = (() => {
         if (clave === Store.KEYS.ordenes) encolar(() => publicarColeccion("ordenes", valor));
         else if (clave === Store.KEYS.clientes) encolar(() => publicarColeccion("clientes", valor));
         else if (clave === Store.KEYS.precios) encolar(() => publicarPrecios(valor));
+        else if (clave === Store.KEYS.autorizacion) encolar(() => publicarAjuste("autorizacion", valor));
+        else if (clave === Store.KEYS.solicitudes) encolar(() => publicarAjuste("solicitudes", valor));
+        else if (clave === Store.KEYS.auditoria) encolar(() => publicarAjuste("auditoria", valor));
       });
 
       auth.onAuthStateChanged(async (user) => {

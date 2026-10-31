@@ -9,7 +9,10 @@ const Store = (() => {
   const KEYS = {
     ordenes: `${NS}.ordenes`,
     clientes: `${NS}.clientes`,
-    precios: `${NS}.precios`
+    precios: `${NS}.precios`,
+    autorizacion: `${NS}.autorizacion`,
+    solicitudes: `${NS}.solicitudes`,
+    auditoria: `${NS}.auditoria`
   };
 
   const memoria = {};
@@ -78,6 +81,9 @@ const Store = (() => {
       if (Array.isArray(datos.ordenes)) escribir(KEYS.ordenes, datos.ordenes);
       if (Array.isArray(datos.clientes)) escribir(KEYS.clientes, datos.clientes);
       if (datos.precios && typeof datos.precios === 'object') escribir(KEYS.precios, datos.precios);
+      if (datos.autorizacion !== undefined) escribir(KEYS.autorizacion, datos.autorizacion || null);
+      if (Array.isArray(datos.solicitudes)) escribir(KEYS.solicitudes, datos.solicitudes);
+      if (Array.isArray(datos.auditoria)) escribir(KEYS.auditoria, datos.auditoria);
     } finally {
       silencio = false;
     }
@@ -241,11 +247,16 @@ const Store = (() => {
   function migrarPrecios() {
     try {
       if (localStorage.getItem(CLAVE_VERSION_PRECIOS) === VERSION_PRECIOS) return false;
+      const guardados = localStorage.getItem(KEYS.precios);
+      const teniaPrecios = Boolean(guardados) && guardados !== '{}' && guardados !== 'null';
       localStorage.removeItem(KEYS.precios);
       localStorage.setItem(CLAVE_VERSION_PRECIOS, VERSION_PRECIOS);
-      // Deja marcado que la nube también debe quedar en cero.
-      localStorage.setItem(CLAVE_RESET_PRECIOS, '1');
-      return true;
+      /* Solo se marca el reinicio para la nube si ESTE equipo tenía precios
+         guardados de una versión anterior. Un navegador nuevo (o con la caché
+         limpia) no debe borrar el tarifario que ya está configurado en
+         Firestore. */
+      if (teniaPrecios) localStorage.setItem(CLAVE_RESET_PRECIOS, '1');
+      return teniaPrecios;
     } catch (error) {
       return false;
     }
@@ -268,8 +279,76 @@ const Store = (() => {
     }
   }
 
+  /* --------------------- Autorización y solicitudes --------------------- */
+
+  /* Código de urgencia vigente que entrega el administrador:
+     { codigo, autor, creada, expira }. Uno solo a la vez. */
+  function getAutorizacion() {
+    const datos = leer(KEYS.autorizacion, null);
+    return datos && typeof datos === 'object' && datos.codigo ? datos : null;
+  }
+
+  function setAutorizacion(datos) {
+    escribir(KEYS.autorizacion, datos && datos.codigo ? datos : null);
+  }
+
+  /* Pedidos de cambio que el mostrador envía al administrador. */
+  function getSolicitudes() {
+    const lista = leer(KEYS.solicitudes, []);
+    return Array.isArray(lista) ? lista : [];
+  }
+
+  function setSolicitudes(lista) {
+    escribir(KEYS.solicitudes, Array.isArray(lista) ? lista : []);
+  }
+
+  function addSolicitud(solicitud) {
+    const lista = getSolicitudes();
+    const nueva = {
+      id: nuevoId('sol'),
+      creada: new Date().toISOString(),
+      estado: 'pendiente',
+      ...solicitud
+    };
+    lista.unshift(nueva);
+    setSolicitudes(lista);
+    return nueva;
+  }
+
+  function resolverSolicitud(id, cambios) {
+    const lista = getSolicitudes();
+    const indice = lista.findIndex((s) => s.id === id);
+    if (indice === -1) return null;
+    lista[indice] = { ...lista[indice], ...cambios, resuelta: new Date().toISOString() };
+    setSolicitudes(lista);
+    return lista[indice];
+  }
+
+  /* Historial de cambios de tarifa: quién, cuándo y con qué código. */
+  function getAuditoria() {
+    const lista = leer(KEYS.auditoria, []);
+    return Array.isArray(lista) ? lista : [];
+  }
+
+  function registrarAuditoria(entrada) {
+    const lista = getAuditoria();
+    lista.unshift({ ...entrada, fecha: entrada.fecha || new Date().toISOString() });
+    setAuditoria(lista.slice(0, 300));
+    return lista[0];
+  }
+
+  function setAuditoria(lista) {
+    escribir(KEYS.auditoria, Array.isArray(lista) ? lista.slice(0, 300) : []);
+  }
+
   function snapshot() {
-    return { generado: new Date().toISOString(), ordenes: getOrdenes(), clientes: getClientes(), precios: getPrecios() };
+    return {
+      generado: new Date().toISOString(),
+      ordenes: getOrdenes(),
+      clientes: getClientes(),
+      precios: getPrecios(),
+      auditoria: getAuditoria()
+    };
   }
 
   function reemplazarTodo({ ordenes, clientes, precios }) {
@@ -279,7 +358,10 @@ const Store = (() => {
   }
 
   return {
-    disponible,
+    // Getter: el valor real puede cambiar si el navegador bloquea localStorage.
+    get disponible() {
+      return disponible;
+    },
     KEYS,
     alEscribir,
     aplicarRemoto,
@@ -301,6 +383,15 @@ const Store = (() => {
     migrarPrecios,
     resetPreciosPendiente,
     limpiarResetPrecios,
+    getAutorizacion,
+    setAutorizacion,
+    getSolicitudes,
+    setSolicitudes,
+    addSolicitud,
+    resolverSolicitud,
+    getAuditoria,
+    setAuditoria,
+    registrarAuditoria,
     claveTelefono,
     snapshot,
     reemplazarTodo

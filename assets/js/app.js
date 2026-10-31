@@ -196,6 +196,10 @@
     try {
       sessionStorage.removeItem(SESION_KEY);
     } catch (error) { /* nada */ }
+    limpiarSesionAutorizacion();
+    // Evita dejar el tarifario abierto (y editable) tras salir.
+    cerrarModal();
+    cerrarPrecios();
     if (Sync.hayNube) Sync.salir();
     estado.operador = null;
     estado.items = [];
@@ -325,17 +329,136 @@
     $('#catalogo').innerHTML = lista
       .map((servicio) => {
         const tarifa = tarifaDe(servicio, overrides);
-        const precio =
-          servicio.tipo === 'peso'
+        // Sin tarifa configurada el servicio se cobraría en S/ 0.00: se avisa
+        // en el propio catálogo en vez de mostrar un precio engañoso.
+        const sinPrecio = !(Number(tarifa) > 0);
+        const precio = sinPrecio
+          ? 'Sin precio'
+          : servicio.tipo === 'peso'
             ? `${money(tarifa)} / kg`
             : `${money(tarifa)} / ${servicio.unidad}`;
         return `<button type="button" class="svc" data-servicio="${servicio.id}" title="${esc(servicio.detalle || '')}">
           <span class="svc-name">${esc(servicio.nombre)}</span>
-          <span class="svc-price">${precio}</span>
+          <span class="svc-price${sinPrecio ? ' svc-sin-precio' : ''}">${precio}</span>
           <span class="svc-detail">${esc(servicio.detalle || '')}</span>
         </button>`;
       })
       .join('');
+  }
+
+  /* ---------------------- Permisos del tarifario ------------------------ */
+
+  const SEGURIDAD = (typeof CONFIG !== 'undefined' && CONFIG.seguridad) || {};
+  const MINUTOS_AUTORIZACION = Number(SEGURIDAD.minutosAutorizacion) > 0 ? Number(SEGURIDAD.minutosAutorizacion) : 15;
+  const LARGO_CODIGO = Number(SEGURIDAD.largoCodigo) > 0 ? Number(SEGURIDAD.largoCodigo) : 5;
+  const CLAVE_AUTORIZACION = 'lavamili.v1.autorizacion.sesion';
+
+  /* Correos con permiso de administración aunque su ficha diga otra cosa. */
+  const CORREOS_ADMIN = (Array.isArray(SEGURIDAD.correosAdmin) ? SEGURIDAD.correosAdmin : [])
+    .map((correo) => String(correo || '').trim().toLowerCase())
+    .filter(Boolean);
+
+  /**
+   * ¿Quien está conectado es administrador?
+   * Por rol (Admin, Administrador, Administradora) o por correo declarado en
+   * config.js. El correo es la red de seguridad: si el rol de Firestore está
+   * mal escrito, el dueño igual puede editar el tarifario.
+   */
+  const esAdmin = () => {
+    const rol = String((estado.operador && estado.operador.rol) || '').trim();
+    if (/admin/i.test(rol)) return true;
+    const usuario = String((estado.operador && estado.operador.usuario) || '').trim().toLowerCase();
+    return Boolean(usuario) && CORREOS_ADMIN.includes(usuario);
+  };
+
+  /* El código que el administrador entrega es de un solo uso por pestaña: el
+     operador debe teclearlo aunque exista uno vigente en la nube. */
+  function sesionAutorizacion() {
+    try {
+      const crudo = sessionStorage.getItem(CLAVE_AUTORIZACION);
+      const datos = crudo ? JSON.parse(crudo) : null;
+      return datos && datos.codigo ? datos : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function guardarSesionAutorizacion(datos) {
+    try {
+      sessionStorage.setItem(CLAVE_AUTORIZACION, JSON.stringify(datos));
+    } catch (error) { /* modo privado: vale solo en memoria */ }
+  }
+
+  function limpiarSesionAutorizacion() {
+    try {
+      sessionStorage.removeItem(CLAVE_AUTORIZACION);
+    } catch (error) { /* nada */ }
+  }
+
+  /**
+   * ¿Puede este usuario cambiar el tarifario ahora?
+   *  - Administrador: siempre.
+   *  - Operador: solo con un código vigente Y tecleado en esta pestaña.
+   */
+  function permisoPrecios() {
+    if (!estado.operador) return { editable: false, motivo: 'sin-sesion' };
+    if (esAdmin()) return { editable: true, motivo: 'admin' };
+    if (SEGURIDAD.exigirCodigoAOperador === false) return { editable: true, motivo: 'libre' };
+
+    const vigente = Store.getAutorizacion();
+    const sesion = sesionAutorizacion();
+    if (!sesion) return { editable: false, motivo: vigente ? 'falta-codigo' : 'sin-codigo' };
+
+    const expira = Date.parse(sesion.expira || '');
+    if (!Number.isFinite(expira) || expira <= Date.now()) return { editable: false, motivo: 'expirado' };
+    if (!vigente || vigente.codigo !== sesion.codigo) return { editable: false, motivo: 'revocado' };
+    return { editable: true, motivo: 'codigo', autor: sesion.autor || 'Administrador', expira };
+  }
+
+  /* horaCorta() ya existe más abajo para las tarjetas: hora del día o fecha. */
+
+  function textoPermiso(permiso) {
+    switch (permiso.motivo) {
+      case 'admin':
+        return { tono: 'ok', texto: 'Acceso de administración: puedes cambiar el tarifario. Cada cambio queda registrado.' };
+      case 'codigo':
+        return { tono: 'ok', texto: `Edición autorizada por ${esc(permiso.autor)} hasta las ${horaCorta(permiso.expira)}.` };
+      case 'falta-codigo':
+        return { tono: 'warn', texto: 'Hay un código de urgencia vigente. Tecléalo para poder editar.' };
+      case 'expirado':
+        return { tono: 'warn', texto: 'La autorización anterior venció. Pide un código nuevo al administrador.' };
+      case 'revocado':
+        return { tono: 'warn', texto: 'El código cambió. Tecléalo de nuevo para seguir editando.' };
+      case 'libre':
+        return { tono: 'ok', texto: 'Edición habilitada.' };
+      default:
+        return { tono: 'warn', texto: 'Solo lectura: el administrador es quien cambia los precios. Usa «Pedir» para solicitar un cambio.' };
+    }
+  }
+
+  /** Deja en la auditoría cada tarifa que cambió de verdad. */
+  function registrarCambiosPrecios(previos, mapa, permiso) {
+    const cambios = CONFIG.servicios
+      .map((servicio) => ({
+        id: servicio.id,
+        servicio: servicio.nombre,
+        antes: Number(tarifaDe(servicio, previos)),
+        despues: Number(tarifaDe(servicio, mapa))
+      }))
+      .filter((cambio) => Math.abs(cambio.antes - cambio.despues) > 0.004);
+
+    if (!cambios.length) return 0;
+
+    const autorizacion = Store.getAutorizacion();
+    Store.registrarAuditoria({
+      operador: (estado.operador && estado.operador.nombre) || 'Operador',
+      rol: (estado.operador && estado.operador.rol) || '',
+      via: permiso.motivo === 'admin' ? 'admin' : 'codigo',
+      codigo: permiso.motivo === 'codigo' && autorizacion ? autorizacion.codigo : '',
+      autorizador: permiso.motivo === 'codigo' ? permiso.autor || '' : '',
+      cambios
+    });
+    return cambios.length;
   }
 
   /* --------------------------- Panel de precios -------------------------- */
@@ -351,6 +474,7 @@
   }
 
   function abrirPrecios() {
+    if ($('#modal').classList.contains('is-open')) cerrarModal();
     const overrides = Store.getPrecios();
     borradorPrecios = {};
     CONFIG.servicios.forEach((servicio) => {
@@ -373,8 +497,38 @@
   }
 
   function renderPrecios() {
+    const permiso = permisoPrecios();
+    const bloqueado = !permiso.editable;
     const filtro = $('#buscarPrecio').value.trim().toLowerCase();
     const bloques = [];
+
+    // Barra de estado: quién puede editar y hasta cuándo.
+    const barra = $('#preciosPermiso');
+    if (barra) {
+      const aviso = textoPermiso(permiso);
+      barra.hidden = false;
+      barra.className = `permiso-bar ${aviso.tono}`;
+      barra.innerHTML = `<span class="permiso-dot" aria-hidden="true"></span><p>${aviso.texto}</p>`;
+    }
+
+    // Botones según rol.
+    const pendientes = Store.getSolicitudes().filter((s) => s.estado === 'pendiente');
+    /* Con el tarifario bloqueado el botón no se desactiva: cambia de acción y
+       abre el formulario del código, que es lo único que puede desbloquearlo. */
+    const guardar = $('#guardarPrecios');
+    guardar.disabled = false;
+    guardar.textContent = bloqueado ? 'Autorizar edición' : 'Guardar cambios';
+    // Restablecer deja todo en S/ 0.00: es una acción destructiva, solo admin.
+    $('#restablecerPrecios').hidden = !esAdmin();
+    $('#btnAutorizarCodigo').hidden = !esAdmin();
+    $('#btnHistorial').hidden = !esAdmin();
+    $('#btnCodigoPrecios').hidden = esAdmin();
+    $('#btnSolicitudes').hidden = !esAdmin();
+    const badge = $('#solicitudesBadge');
+    if (badge) {
+      badge.hidden = pendientes.length === 0;
+      badge.textContent = String(pendientes.length);
+    }
 
     CONFIG.categorias
       .filter((cat) => cat.id !== 'todos')
@@ -390,16 +544,17 @@
               .map((s) => {
                 const bruto = borradorPrecios ? borradorPrecios[s.id] : undefined;
                 const valor = bruto === '' || bruto === undefined || bruto === null ? tarifaDe(s) : parseNum(bruto);
-                return `<div class="precio-row">
+                return `<div class="precio-row${bloqueado ? ' is-locked' : ''}">
                   <div class="precio-info">
                     <strong>${esc(s.nombre)}</strong>
                     <span>${esc(s.detalle || '')}</span>
                   </div>
                   <label class="precio-input">
                     <span>S/</span>
-                    <input type="number" min="0" step="0.10" inputmode="decimal" data-precio="${s.id}" value="${Number(valor).toFixed(2)}" aria-label="Precio de ${esc(s.nombre)}" />
+                    <input type="number" min="0" step="0.10" inputmode="decimal" data-precio="${s.id}" value="${Number(valor).toFixed(2)}" aria-label="Precio de ${esc(s.nombre)}"${bloqueado ? ' disabled' : ''} />
                     <small>${esc(s.unidad)}</small>
                   </label>
+                  ${bloqueado ? `<button class="precio-pedir" type="button" data-pedir="${s.id}" title="Pedir un cambio de precio al administrador">Pedir</button>` : ''}
                 </div>`;
               })
               .join('')
@@ -410,6 +565,13 @@
   }
 
   function guardarPrecios() {
+    const permiso = permisoPrecios();
+    if (!permiso.editable) {
+      toast('Solo el administrador cambia los precios');
+      abrirModalCodigo(permiso);
+      return;
+    }
+
     const previos = Store.getPrecios();
     const mapa = {};
 
@@ -421,6 +583,7 @@
     });
 
     Store.setPrecios(mapa);
+    const cambios = registrarCambiosPrecios(previos, mapa, permiso);
 
     // Si el operador ya tenía prendas en el carrito, se actualizan solo
     // aquellas cuyo precio no había sido editado a mano.
@@ -435,15 +598,344 @@
     renderItems();
     refrescarResumen();
     cerrarPrecios();
-    toast('Precios actualizados');
+    toast(cambios ? `Precios actualizados · ${cambios} ${cambios === 1 ? 'cambio registrado' : 'cambios registrados'}` : 'Precios actualizados');
   }
 
   function restablecerPrecios() {
+    if (!esAdmin()) {
+      toast('Solo el administrador restablece el tarifario');
+      return;
+    }
     CONFIG.servicios.forEach((servicio) => {
       borradorPrecios[servicio.id] = servicio.tarifa;
     });
     renderPrecios();
     toast('Precios de fábrica cargados. Pulsa «Guardar cambios».');
+  }
+
+  /* ------------------- Código de autorización (urgencias) ---------------- */
+
+  /** El mostrador teclea el código que le dictó el administrador. */
+  function abrirModalCodigo(permiso) {
+    const aviso = textoPermiso(permiso || permisoPrecios());
+    const vigente = Store.getAutorizacion();
+    const detalle = vigente
+      ? `Hay un código vigente hasta las ${horaCorta(vigente.expira)}.`
+      : 'No hay ningún código activo: pídele al administrador que lo cree en «Precios → Autorizar código».';
+
+    abrirModal(`
+      <h2>Autorización del administrador</h2>
+      <p class="muted">${aviso.texto}</p>
+      <p class="muted small">${detalle}</p>
+      <form id="formCodigo" autocomplete="off">
+        <label class="field">
+          <span>Código de ${LARGO_CODIGO} dígitos</span>
+          <input id="codigoInput" class="codigo-input" type="text" inputmode="numeric" maxlength="${LARGO_CODIGO}"
+            placeholder="${'0'.repeat(LARGO_CODIGO)}" autocomplete="one-time-code" aria-label="Código de autorización" />
+        </label>
+        <p class="form-error" id="codigoError" role="alert"></p>
+        <div class="modal-acciones">
+          <button class="btn btn-primary" type="submit">Autorizar edición</button>
+          <button class="btn btn-outline" type="button" data-accion="cerrar">Cancelar</button>
+        </div>
+      </form>
+    `);
+
+    const input = $('#codigoInput');
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/\D/g, '').slice(0, LARGO_CODIGO);
+    });
+
+    $('#formCodigo').addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      const codigo = input.value.trim();
+      const activo = Store.getAutorizacion();
+      if (codigo.length !== LARGO_CODIGO) {
+        $('#codigoError').textContent = `El código debe tener ${LARGO_CODIGO} dígitos.`;
+        return;
+      }
+      if (!activo) {
+        $('#codigoError').textContent = 'No hay un código vigente. Pídele uno al administrador.';
+        return;
+      }
+      if (Date.parse(activo.expira) <= Date.now()) {
+        $('#codigoError').textContent = 'Ese código ya venció. Pide uno nuevo.';
+        return;
+      }
+      if (String(activo.codigo) !== codigo) {
+        $('#codigoError').textContent = 'El código no coincide. Verifícalo con el administrador.';
+        return;
+      }
+      guardarSesionAutorizacion({ codigo, autor: activo.autor || 'Administrador', expira: activo.expira });
+      Store.registrarAuditoria({
+        operador: (estado.operador && estado.operador.nombre) || 'Operador',
+        rol: (estado.operador && estado.operador.rol) || '',
+        via: 'codigo',
+        codigo,
+        autorizador: activo.autor || 'Administrador',
+        detalle: 'Código aceptado en el mostrador',
+        cambios: []
+      });
+      cerrarModal();
+      abrirPrecios();
+      toast(`Edición habilitada hasta las ${horaCorta(activo.expira)}`);
+    });
+
+    setTimeout(() => input.focus(), 120);
+  }
+
+  /** El administrador escribe el código y decide cuánto dura. */
+  function abrirModalAutorizar() {
+    if (!esAdmin()) {
+      toast('Solo el administrador autoriza códigos');
+      return;
+    }
+
+    const actual = Store.getAutorizacion();
+    const vigente = actual && Date.parse(actual.expira) > Date.now();
+
+    abrirModal(`
+      <h2>Autorizar cambio de urgencia</h2>
+      <p class="muted">Escribe un código de ${LARGO_CODIGO} dígitos y díctalo al mostrador. Sirve para editar todo el tarifario mientras esté vigente.</p>
+      ${vigente ? `<p class="muted small">Código vigente hasta las ${horaCorta(actual.expira)}. Si creas otro, el anterior deja de servir.</p>` : ''}
+      <form id="formAutorizar" autocomplete="off">
+        <label class="field">
+          <span>Código de ${LARGO_CODIGO} dígitos</span>
+          <input id="codigoNuevo" class="codigo-input" type="text" inputmode="numeric" maxlength="${LARGO_CODIGO}"
+            placeholder="${'0'.repeat(LARGO_CODIGO)}" autocomplete="off" aria-label="Nuevo código de autorización" />
+        </label>
+        <label class="field">
+          <span>Vigencia en minutos</span>
+          <input id="minutosCodigo" type="number" min="1" max="240" step="1" value="${MINUTOS_AUTORIZACION}" />
+        </label>
+        <p class="form-error" id="autorizarError" role="alert"></p>
+        <div class="modal-acciones">
+          <button class="btn btn-primary" type="submit">Crear código</button>
+          ${vigente ? '<button class="btn btn-outline" type="button" id="anularCodigo">Anular código vigente</button>' : ''}
+          <button class="btn btn-outline" type="button" data-accion="cerrar">Cancelar</button>
+        </div>
+      </form>
+    `);
+
+    const input = $('#codigoNuevo');
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/\D/g, '').slice(0, LARGO_CODIGO);
+    });
+
+    const anular = $('#anularCodigo');
+    if (anular) {
+      anular.addEventListener('click', () => {
+        Store.setAutorizacion(null);
+        Store.registrarAuditoria({
+          operador: (estado.operador && estado.operador.nombre) || 'Administrador',
+          rol: (estado.operador && estado.operador.rol) || '',
+          via: 'admin',
+          detalle: 'Código de autorización anulado',
+          cambios: []
+        });
+        limpiarSesionAutorizacion();
+        cerrarModal();
+        abrirPrecios();
+        toast('Código anulado');
+      });
+    }
+
+    $('#formAutorizar').addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      const codigo = input.value.trim();
+      const minutos = Math.min(240, Math.max(1, Number($('#minutosCodigo').value) || MINUTOS_AUTORIZACION));
+
+      if (codigo.length !== LARGO_CODIGO) {
+        $('#autorizarError').textContent = `El código debe tener ${LARGO_CODIGO} dígitos.`;
+        return;
+      }
+
+      const creada = new Date();
+      const datos = {
+        codigo,
+        autor: (estado.operador && estado.operador.nombre) || 'Administrador',
+        creada: creada.toISOString(),
+        expira: new Date(creada.getTime() + minutos * 60000).toISOString()
+      };
+      Store.setAutorizacion(datos);
+      Store.registrarAuditoria({
+        operador: datos.autor,
+        rol: (estado.operador && estado.operador.rol) || '',
+        via: 'admin',
+        codigo,
+        detalle: `Código creado con ${minutos} min de vigencia`,
+        cambios: []
+      });
+
+      cerrarModal();
+      abrirPrecios();
+      toast(`Código ${codigo} válido hasta las ${horaCorta(datos.expira)}`);
+    });
+
+    setTimeout(() => input.focus(), 120);
+  }
+
+  /* --------------------- Solicitudes de cambio --------------------------- */
+
+  function abrirSolicitud(servicioId) {
+    const servicio = CONFIG.servicios.find((s) => s.id === servicioId);
+    if (!servicio) return;
+    const actual = tarifaDe(servicio);
+
+    abrirModal(`
+      <h2>Pedir cambio de precio</h2>
+      <p class="muted">${esc(servicio.nombre)} · ahora ${actual > 0 ? `${money(actual)} / ${esc(servicio.unidad)}` : 'sin precio'}</p>
+      <form id="formSolicitud">
+        <label class="field">
+          <span>Precio propuesto (S/)</span>
+          <input id="solPrecio" type="number" min="0" step="0.10" inputmode="decimal" value="${Number(actual).toFixed(2)}" required />
+        </label>
+        <label class="field">
+          <span>Motivo</span>
+          <textarea id="solNota" rows="2" placeholder="Ej. la clienta trae 8 kg y pide precio por volumen"></textarea>
+        </label>
+        <p class="form-error" id="solError" role="alert"></p>
+        <div class="modal-acciones">
+          <button class="btn btn-primary" type="submit">Enviar al administrador</button>
+          <button class="btn btn-outline" type="button" data-accion="cerrar">Cancelar</button>
+        </div>
+      </form>
+    `);
+
+    $('#formSolicitud').addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      const precio = parseNum($('#solPrecio').value);
+      if (!(precio > 0)) {
+        $('#solError').textContent = 'Escribe un precio mayor a S/ 0.00.';
+        return;
+      }
+      if (redondear(precio) === redondear(actual)) {
+        $('#solError').textContent = 'El precio propuesto es el mismo que ya está en el tarifario.';
+        return;
+      }
+      Store.addSolicitud({
+        servicioId,
+        servicio: servicio.nombre,
+        unidad: servicio.unidad,
+        precioActual: redondear(actual),
+        precioPedido: redondear(precio),
+        nota: $('#solNota').value.trim(),
+        operador: (estado.operador && estado.operador.nombre) || 'Operador',
+        rol: (estado.operador && estado.operador.rol) || ''
+      });
+      cerrarModal();
+      abrirPrecios();
+      toast('Solicitud enviada al administrador');
+    });
+
+    setTimeout(() => $('#solPrecio').focus(), 120);
+  }
+
+  function abrirSolicitudes() {
+    if (!esAdmin()) {
+      toast('Solo el administrador ve las solicitudes');
+      return;
+    }
+
+    const pendientes = Store.getSolicitudes().filter((s) => s.estado === 'pendiente');
+    const filas = pendientes.length
+      ? pendientes
+          .map(
+            (s) => `<div class="sol-item">
+        <div class="sol-info">
+          <strong>${esc(s.servicio)}</strong>
+          <span>${money(s.precioActual)} → ${money(s.precioPedido)} / ${esc(s.unidad || 'und')}</span>
+          <small>${esc(s.operador || '')} · ${esc((s.creada || '').slice(0, 16).replace('T', ' '))}${s.nota ? ` · «${esc(s.nota)}»` : ''}</small>
+        </div>
+        <div class="sol-acciones">
+          <button class="btn btn-mini btn-primary" type="button" data-aprobar="${s.id}">Aplicar</button>
+          <button class="btn btn-mini" type="button" data-rechazar="${s.id}">Rechazar</button>
+        </div>
+      </div>`
+          )
+          .join('')
+      : '<p class="sin-datos">No hay solicitudes pendientes.</p>';
+
+    abrirModal(`
+      <h2>Solicitudes del mostrador</h2>
+      <p class="muted small">Aplicar un cambio escribe la tarifa y queda en el historial.</p>
+      <div class="sol-lista">${filas}</div>
+      <div class="modal-acciones">
+        <button class="btn btn-outline" type="button" data-accion="cerrar">Cerrar</button>
+      </div>
+    `);
+
+  }
+
+  function aplicarSolicitud(id) {
+    const solicitud = Store.getSolicitudes().find((s) => s.id === id);
+    if (!solicitud) return;
+
+    const previos = Store.getPrecios();
+    const mapa = {};
+    CONFIG.servicios.forEach((servicio) => {
+      mapa[servicio.id] = tarifaDe(servicio, previos);
+    });
+    mapa[solicitud.servicioId] = redondear(parseNum(solicitud.precioPedido));
+
+    Store.setPrecios(mapa);
+    registrarCambiosPrecios(previos, mapa, { motivo: 'admin' });
+    Store.resolverSolicitud(id, {
+      estado: 'aprobada',
+      resueltaPor: (estado.operador && estado.operador.nombre) || 'Administrador'
+    });
+
+    estado.items.forEach((item) => {
+      const servicio = CONFIG.servicios.find((s) => s.id === item.servicioId);
+      if (!servicio) return;
+      if (Number(item.tarifa) === Number(tarifaDe(servicio, previos))) item.tarifa = mapa[servicio.id];
+    });
+
+    renderCatalogo();
+    renderItems();
+    refrescarResumen();
+    cerrarModal();
+    abrirPrecios();
+    toast(`Precio de ${solicitud.servicio} actualizado a ${money(mapa[solicitud.servicioId])}`);
+  }
+
+  function rechazarSolicitud(id) {
+    Store.resolverSolicitud(id, {
+      estado: 'rechazada',
+      resueltaPor: (estado.operador && estado.operador.nombre) || 'Administrador'
+    });
+    cerrarModal();
+    abrirSolicitudes();
+  }
+
+  function abrirHistorial() {
+    if (!esAdmin()) return;
+    const entradas = Store.getAuditoria().slice(0, 40);
+    const filas = entradas.length
+      ? entradas
+          .map((e) => {
+            const detalle = e.cambios && e.cambios.length
+              ? e.cambios.map((c) => `${esc(c.servicio)}: ${money(c.antes)} → ${money(c.despues)}`).join('<br>')
+              : esc(e.detalle || '');
+            return `<div class="sol-item solo-info">
+              <div class="sol-info">
+                <strong>${esc(e.operador || 'Operador')} · ${e.via === 'admin' ? 'administración' : 'con código'}</strong>
+                <span>${esc((e.fecha || '').slice(0, 16).replace('T', ' '))}${e.codigo ? ` · código ${esc(e.codigo)}` : ''}</span>
+                <small>${detalle}</small>
+              </div>
+            </div>`;
+          })
+          .join('')
+      : '<p class="sin-datos">Todavía no hay cambios de tarifa registrados.</p>';
+
+    abrirModal(`
+      <h2>Historial de cambios de tarifa</h2>
+      <p class="muted small">Últimos 40 movimientos, con el código usado si lo hubo.</p>
+      <div class="sol-lista">${filas}</div>
+      <div class="modal-acciones">
+        <button class="btn btn-outline" type="button" data-accion="cerrar">Cerrar</button>
+      </div>
+    `);
   }
 
   /* --------------------------- Carrito / ítems -------------------------- */
@@ -961,6 +1453,9 @@
     if (!validar()) return;
 
     const totales = calcularTotales();
+    if (!(totales.total > 0)) {
+      toast('Atención: el total es S/ 0.00. Revisa las tarifas en «Precios».');
+    }
     const pago = calcularPago(totales.total);
     const proceso = procesoDeDias(diasDeProceso());
     const recojo = fechaRecojo();
@@ -1239,6 +1734,10 @@
   /* -------------------------------- Modal ------------------------------- */
 
   function abrirModal(html) {
+    // El modal (z-index 60) queda por encima del panel de precios (55): si el
+    // panel sigue abierto, su botón de cerrar queda tapado por el fondo del
+    // modal. Se cierra antes de abrir.
+    if ($('#panelPrecios').classList.contains('is-open')) cerrarPrecios();
     $('#modalContenido').innerHTML = html;
     $('#modal').classList.add('is-open');
     $('#modal').setAttribute('aria-hidden', 'false');
@@ -2143,9 +2642,9 @@
         .reduce((suma, m) => suma + (Number(m.monto) || 0), 0);
     }, 0);
 
-    const porCobrar = ordenes
-      .filter((o) => o.pago && o.estado !== 'entregado')
-      .reduce((acc, o) => acc + datosPago(o).saldo, 0);
+    // Cuenta todo saldo abierto, también el de órdenes ya entregadas: si el
+    // cliente se llevó las prendas sin pagar el saldo, sigue siendo deuda.
+    const porCobrar = ordenes.reduce((acc, o) => acc + Math.max(0, datosPago(o).saldo), 0);
 
     $('#metrics').innerHTML = `
       <div class="metric"><p class="metric-label">Ingresos hoy</p><p class="metric-value">${ingresosDelDia.length}</p><p class="metric-sub">${prendasHoy} prendas registradas</p></div>
@@ -2153,7 +2652,7 @@
       <div class="metric"><p class="metric-label">Kilos hoy</p><p class="metric-value">${kilosHoy.toFixed(2)}</p><p class="metric-sub">pesados en mostrador</p></div>
       <div class="metric"><p class="metric-label">Facturado hoy</p><p class="metric-value">${money(facturadoHoy)}</p><p class="metric-sub">servicios del día</p></div>
       <div class="metric"><p class="metric-label">Cobrado hoy</p><p class="metric-value">${money(cobradoHoy)}</p><p class="metric-sub">pagos y adelantos</p></div>
-      <div class="metric"><p class="metric-label">Por cobrar</p><p class="metric-value">${money(porCobrar)}</p><p class="metric-sub">servicios abiertos</p></div>
+      <div class="metric"><p class="metric-label">Por cobrar</p><p class="metric-value">${money(porCobrar)}</p><p class="metric-sub">saldo de todas las órdenes</p></div>
     `;
 
     const dias = [];
@@ -2329,6 +2828,16 @@
     $('#guardarPrecios').addEventListener('click', guardarPrecios);
     $('#restablecerPrecios').addEventListener('click', restablecerPrecios);
     $('#buscarPrecio').addEventListener('input', renderPrecios);
+    $('#btnAutorizarCodigo').addEventListener('click', abrirModalAutorizar);
+    $('#btnCodigoPrecios').addEventListener('click', () => abrirModalCodigo(permisoPrecios()));
+    $('#btnSolicitudes').addEventListener('click', abrirSolicitudes);
+    $('#btnHistorial').addEventListener('click', abrirHistorial);
+
+    // «Pedir» en cada servicio bloqueado: envía la solicitud al administrador.
+    $('#listaPrecios').addEventListener('click', (evento) => {
+      const boton = evento.target.closest('[data-pedir]');
+      if (boton) abrirSolicitud(boton.dataset.pedir);
+    });
 
     $('#panelPrecios').addEventListener('click', (evento) => {
       if (evento.target.closest('[data-cerrar-panel]')) cerrarPrecios();
@@ -2533,6 +3042,18 @@
       const cerrar = evento.target.closest('[data-accion="cerrar"]');
       if (cerrar) {
         cerrarModal();
+        return;
+      }
+
+      const aprobar = evento.target.closest('[data-aprobar]');
+      if (aprobar) {
+        aplicarSolicitud(aprobar.dataset.aprobar);
+        return;
+      }
+
+      const rechazar = evento.target.closest('[data-rechazar]');
+      if (rechazar) {
+        rechazarSolicitud(rechazar.dataset.rechazar);
         return;
       }
 

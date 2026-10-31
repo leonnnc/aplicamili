@@ -52,6 +52,22 @@ const CONFIG = {
     { codigo: 'ALM-D2', nombre: 'Depósito · caja 2' }
   ],
 
+  /* Cambios del tarifario.
+     Solo el administrador edita precios. En una urgencia, el administrador
+     escribe un código de 5 dígitos desde el panel «Precios»; el mostrador
+     lo teclea y queda habilitado durante `minutosAutorizacion` para editar
+     todo el tarifario. Cada cambio queda registrado en la auditoría. */
+  seguridad: {
+    minutosAutorizacion: 15,
+    largoCodigo: 5,
+    exigirCodigoAOperador: true,
+    /* Correos que entran SIEMPRE como administradores, aunque su ficha en
+       Firestore tenga otro rol. Evita que un rol mal escrito deje al dueño
+       sin poder tocar el tarifario. Ejemplo:
+       correosAdmin: ['mili@lavamili.pe'], */
+    correosAdmin: []
+  },
+
   // Operadores con acceso al mostrador.
   operadores: [
     { usuario: 'mili', pin: '1234', nombre: 'Mili Rojas', rol: 'Administradora' },
