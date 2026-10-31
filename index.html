@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
   <title>LavaMili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261031c" />
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261031e" />
 </head>
 <body>
 
@@ -140,11 +140,27 @@
           <div class="fecha-hoy" id="fechaHoy"></div>
         </div>
 
+        <!-- Ruta del registro: un paso a la vez, con confirmación -->
+        <nav class="pasos" id="pasosNav" aria-label="Pasos del registro">
+          <button class="paso-tab is-active" type="button" data-ir="1" aria-current="step">
+            <span class="paso-num">1</span><span class="paso-txt">Cliente</span>
+          </button>
+          <button class="paso-tab" type="button" data-ir="2">
+            <span class="paso-num">2</span><span class="paso-txt">Recepción y prendas</span>
+          </button>
+          <button class="paso-tab" type="button" data-ir="3">
+            <span class="paso-num">3</span><span class="paso-txt">Proceso y recojo</span>
+          </button>
+          <button class="paso-tab" type="button" data-ir="4">
+            <span class="paso-num">4</span><span class="paso-txt">Enviar</span>
+          </button>
+        </nav>
+
         <div class="workspace">
           <div class="col-main">
 
-            <!-- Paso 1 -->
-            <section class="card">
+            <!-- Paso 1 · Cliente -->
+            <section class="card paso-panel is-active" data-paso="1">
               <header class="card-head">
                 <span class="step">1</span>
                 <div class="card-head-text">
@@ -176,17 +192,50 @@
               </div>
 
               <div class="client-found oculto" id="clienteEncontrado"></div>
+
+              <div class="paso-nav">
+                <button class="btn btn-primary" id="pasoSiguiente1" type="button">Confirmar cliente</button>
+              </div>
             </section>
 
-            <!-- Paso 2 -->
-            <section class="card">
+            <!-- Paso 2 · Recepción y prendas (juntos) -->
+            <section class="card paso-panel" data-paso="2">
               <header class="card-head">
                 <span class="step">2</span>
                 <div class="card-head-text">
-                  <h2>Servicios y prendas</h2>
-                  <p>Toca un servicio del catálogo. Los servicios por peso se cobran por kilo.</p>
+                  <h2>Recepción y prendas</h2>
+                  <p>Se recibe la bolsa pesándola o contando, y en el mismo paso se eligen los servicios.</p>
                 </div>
               </header>
+
+              <div class="recepcion-modos" id="recepcionModos" role="radiogroup" aria-label="Forma de recepción">
+                <button class="modo-card is-active" type="button" data-modo="peso" role="radio" aria-checked="true">
+                  <strong>Por peso</strong>
+                  <span>Se pesa frente al cliente y se cobra por kilo.</span>
+                </button>
+                <button class="modo-card" type="button" data-modo="unidad" role="radio" aria-checked="false">
+                  <strong>Por conteo</strong>
+                  <span>Se cuentan las prendas y se cobra por unidad.</span>
+                </button>
+              </div>
+
+              <div class="grid-2 mt-14">
+                <div class="field" id="campoPesoRecepcion">
+                  <label for="pesoRecepcion">Peso en la balanza (kg) <span class="req">*</span></label>
+                  <input id="pesoRecepcion" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+                  <p class="hint">Se usa como peso del primer servicio por kilo; luego puedes ajustarlo.</p>
+                </div>
+                <div class="field oculto" id="campoConteoRecepcion">
+                  <label for="conteoRecepcion">Prendas contadas <span class="req">*</span></label>
+                  <input id="conteoRecepcion" type="number" min="1" step="1" inputmode="numeric" placeholder="0" />
+                  <p class="hint">Se usa como cantidad del primer servicio por unidad.</p>
+                </div>
+              </div>
+
+              <div class="filtro-modo mt-14">
+                <span class="muted small" id="filtroModoTexto"></span>
+                <button class="link-btn" type="button" id="btnVerTodos">Ver todos los servicios</button>
+              </div>
 
               <div class="chips" id="categorias" role="tablist" aria-label="Categorías de servicio"></div>
               <div class="catalogo" id="catalogo"></div>
@@ -196,19 +245,29 @@
                 <span class="muted small" id="itemsVacio">Aún no agregaste prendas.</span>
               </div>
               <div class="items" id="items"></div>
+
+              <div class="paso-nav">
+                <button class="btn btn-outline" id="pasoAtras2" type="button">Atrás</button>
+                <button class="btn btn-primary" id="pasoSiguiente2" type="button">Continuar al proceso</button>
+              </div>
             </section>
 
-            <!-- Paso 3 -->
-            <section class="card">
+            <!-- Paso 3 · Proceso, recojo y pago -->
+            <section class="card paso-panel" data-paso="3">
               <header class="card-head">
                 <span class="step">3</span>
                 <div class="card-head-text">
                   <h2>Proceso y recojo</h2>
-                  <p>La fecha de recojo alimenta el aviso que recibe el cliente.</p>
+                  <p>Elige el proceso; la fecha de recojo alimenta el aviso que recibe el cliente.</p>
                 </div>
               </header>
 
               <div class="field">
+                <label>Proceso <span class="req">*</span></label>
+                <div class="proceso-chips" id="procesoChips" role="group" aria-label="Tipo de proceso"></div>
+              </div>
+
+              <div class="field mt-14">
                 <label>Fecha de recojo <span class="req">*</span></label>
 
                 <div class="semana">
@@ -255,12 +314,66 @@
                 </div>
               </div>
 
+              <div class="pago-box mt-14">
+                <div class="pago-head">
+                  <h3>Pago</h3>
+                  <span class="estado neutral" id="pagoEstadoChip">Por cobrar</span>
+                </div>
+
+                <div class="grid-2">
+                  <div class="field">
+                    <label for="estadoPago">¿Se concretó el pago?</label>
+                    <select id="estadoPago"></select>
+                  </div>
+                  <div class="field">
+                    <label for="formaPago">Tipo de pago</label>
+                    <select id="formaPago"></select>
+                  </div>
+                </div>
+
+                <div class="field mt-14 oculto" id="campoAdelanto">
+                  <label for="montoAdelanto">Monto del adelanto (S/)</label>
+                  <input id="montoAdelanto" type="number" min="0" step="0.01" value="0.00" inputmode="decimal" />
+                  <p class="hint" id="adelantoHint">El saldo restante queda por cobrar.</p>
+                </div>
+
+                <dl class="resumen-lista pago-totales">
+                  <div><dt>Pagado ahora</dt><dd id="sumPagado">S/ 0.00</dd></div>
+                  <div><dt>Saldo pendiente</dt><dd id="sumSaldo">S/ 0.00</dd></div>
+                </dl>
+              </div>
+
               <div class="field mt-14">
                 <label for="notas">Observaciones</label>
                 <textarea id="notas" rows="2" placeholder="Manchas, prendas delicadas, instrucciones especiales…"></textarea>
               </div>
 
               <div class="aviso-preview" id="avisoPreview"></div>
+
+              <div class="paso-nav">
+                <button class="btn btn-outline" id="pasoAtras3" type="button">Atrás</button>
+                <button class="btn btn-primary" id="pasoSiguiente3" type="button">Ver resumen</button>
+              </div>
+            </section>
+
+            <!-- Paso 4 · Resumen y envío -->
+            <section class="card paso-panel" data-paso="4">
+              <header class="card-head">
+                <span class="step">4</span>
+                <div class="card-head-text">
+                  <h2>Resumen para el cliente</h2>
+                  <p>Revisa los datos: al confirmar queda registrado y puedes enviar el aviso por WhatsApp.</p>
+                </div>
+              </header>
+
+              <div class="recibo" id="resumenFinal"></div>
+
+              <div class="paso-nav paso-nav-final">
+                <button class="btn btn-outline" id="pasoAtras4" type="button">Atrás</button>
+                <button class="btn btn-primary" id="btnRegistrar" type="button">Enviar por WhatsApp</button>
+                <button class="btn btn-outline" id="btnRegistrarImprimir" type="button">Imprimir comprobante</button>
+                <button class="btn btn-ghost" id="btnRegistrarSin" type="button">Registrar sin aviso</button>
+              </div>
             </section>
           </div>
 
@@ -287,38 +400,8 @@
                 <strong id="sumTotal">S/ 0.00</strong>
               </div>
 
-              <div class="pago-box">
-                <div class="pago-head">
-                  <h3>Pago</h3>
-                  <span class="estado neutral" id="pagoEstadoChip">Por cobrar</span>
-                </div>
-
-                <div class="field">
-                  <label for="estadoPago">¿Se concretó el pago?</label>
-                  <select id="estadoPago"></select>
-                </div>
-
-                <div class="field">
-                  <label for="formaPago">Tipo de pago</label>
-                  <select id="formaPago"></select>
-                </div>
-
-                <div class="field oculto" id="campoAdelanto">
-                  <label for="montoAdelanto">Monto del adelanto (S/)</label>
-                  <input id="montoAdelanto" type="number" min="0" step="0.01" value="0.00" inputmode="decimal" />
-                  <p class="hint" id="adelantoHint">El saldo restante queda por cobrar.</p>
-                </div>
-
-                <dl class="resumen-lista pago-totales">
-                  <div><dt>Pagado ahora</dt><dd id="sumPagado">S/ 0.00</dd></div>
-                  <div><dt>Saldo pendiente</dt><dd id="sumSaldo">S/ 0.00</dd></div>
-                </dl>
-              </div>
-
               <div class="recojo-box" id="recojoBox"></div>
 
-              <button class="btn btn-primary btn-block" id="btnRegistrar" type="button">Registrar y avisar por WhatsApp</button>
-              <button class="btn btn-outline btn-block" id="btnRegistrarSin" type="button">Registrar sin enviar</button>
               <p class="hint center">El aviso incluye el día y la hora de recojo.</p>
             </div>
           </aside>
@@ -517,16 +600,16 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261031c"></script>
-  <script src="assets/js/firebase-config.js?v=20261031c"></script>
-  <script src="assets/js/store.js?v=20261031c"></script>
+  <script src="assets/js/config.js?v=20261031e"></script>
+  <script src="assets/js/firebase-config.js?v=20261031e"></script>
+  <script src="assets/js/store.js?v=20261031e"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261031c"></script>
-  <script defer src="assets/js/app.js?v=20261031c"></script>
+  <script defer src="assets/js/sync.js?v=20261031e"></script>
+  <script defer src="assets/js/app.js?v=20261031e"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    LavaMili · Lógica de la aplicación
    ========================================================================== */
 
@@ -30,7 +30,12 @@
     ordenActual: null,
     recojoManual: false,
     offsetSemana: 0,
-    temporizador: null
+    temporizador: null,
+    // Asistente de ingreso: un paso visible a la vez.
+    paso: 1,
+    recepcion: { modo: 'peso', peso: '', unidades: '' },
+    verTodos: false,
+    procesoSel: null
   };
 
   /* ----------------------------- Utilidades ----------------------------- */
@@ -186,6 +191,7 @@
     renderResumen();
     renderBanner();
     limpiarRecojo();
+    pintarPaso(1);
 
     if (!estado.temporizador) {
       estado.temporizador = setInterval(renderBanner, 60000);
@@ -331,7 +337,23 @@
   function renderCatalogo() {
     renderCategorias();
     const overrides = Store.getPrecios();
-    const lista = CONFIG.servicios.filter((s) => estado.categoria === 'todos' || s.cat === estado.categoria);
+    /* El catálogo sigue la recepción: si se pesó, primero los servicios por
+       kilo; si se contó, los de unidad. «Ver todos» levanta el filtro. */
+    const modo = estado.recepcion.modo;
+    const porModo = (s) => estado.verTodos || !modo || s.tipo === modo;
+    const lista = CONFIG.servicios.filter(
+      (s) => porModo(s) && (estado.categoria === 'todos' || s.cat === estado.categoria)
+    );
+
+    const texto = $('#filtroModoTexto');
+    if (texto) {
+      texto.textContent = estado.verTodos
+        ? 'Mostrando todos los servicios.'
+        : `Mostrando servicios ${modo === 'peso' ? 'por kilo' : 'por unidad'} según la recepción.`;
+    }
+    const verTodos = $('#btnVerTodos');
+    if (verTodos) verTodos.textContent = estado.verTodos ? 'Ver solo los de la recepción' : 'Ver todos los servicios';
+
     $('#catalogo').innerHTML = lista
       .map((servicio) => {
         const tarifa = tarifaDe(servicio, overrides);
@@ -349,7 +371,7 @@
           <span class="svc-detail">${esc(servicio.detalle || '')}</span>
         </button>`;
       })
-      .join('');
+      .join('') || '<p class="sin-datos">No hay servicios de este tipo en esta categoría.</p>';
   }
 
   /* ---------------------- Permisos del tarifario ------------------------ */
@@ -969,13 +991,24 @@
       return;
     }
 
+    /* La primera prenda hereda lo que se midió en recepción (peso de la
+       balanza o el conteo); las siguientes arrancan en su mínimo. */
+    const primero = estado.items.length === 0;
+    let cantidad = servicio.tipo === 'peso' ? servicio.minPeso || 0 : 1;
+    if (primero) {
+      if (servicio.tipo === 'peso' && parseNum(estado.recepcion.peso) > 0) cantidad = parseNum(estado.recepcion.peso);
+      if (servicio.tipo === 'unidad' && parseNum(estado.recepcion.unidades) > 0) {
+        cantidad = Math.max(1, Math.round(parseNum(estado.recepcion.unidades)));
+      }
+    }
+
     estado.items.push({
       key: uid('it'),
       servicioId: servicio.id,
       nombre: servicio.nombre,
       tipo: servicio.tipo,
       unidad: servicio.unidad,
-      cantidad: servicio.tipo === 'peso' ? servicio.minPeso || 0 : 1,
+      cantidad,
       tarifa: tarifaDe(servicio),
       minPeso: servicio.minPeso || 0
     });
@@ -1278,7 +1311,7 @@
     }
     const { dia, hora } = fechaAviso(recojo);
     const prefijo = sugerido ? 'Sugerido: ' : '';
-    $('#recojoHint').textContent = `${prefijo}${textoDias(diasDeProceso())} de proceso · listo el ${dia} a las ${hora}`;
+    $('#recojoHint').textContent = `${prefijo}${procesoActual().nombre} · listo el ${dia} a las ${hora}`;
   }
 
   /** El operador elige el día tocando la tarjeta. */
@@ -1286,6 +1319,9 @@
     const hora = $('#horaRecojo').value || '08:00';
     $('#recojo').value = `${iso}T${hora}`;
     estado.recojoManual = true;
+    // Elegir el día a mano manda sobre el proceso sugerido.
+    estado.procesoSel = null;
+    renderProcesos();
     renderSemana();
     actualizarHintRecojo(false);
     actualizarAviso();
@@ -1339,10 +1375,8 @@
       ? `entregaremos tus prendas en ${esc(lugar)}`
       : `tus prendas estarán listas`;
 
-    const dias = diasDeProceso();
-    const proceso = dias <= 0
-      ? 'Proceso para el mismo día'
-      : `Proceso de ${textoDias(dias)}`;
+    // Se anuncia el proceso realmente elegido (Express, Normal, 48 h…).
+    const proceso = `Proceso ${procesoActual().nombre}`;
 
     aviso.className = 'aviso-preview';
     aviso.innerHTML = `<p class="eyebrow">Aviso al cliente</p>
@@ -1384,6 +1418,248 @@
       $('#cliHint').classList.remove('ok');
     }
     actualizarCodigoCliente();
+  }
+
+  /* --------------------------- Asistente de pasos ------------------------ */
+
+  /* Cuatro pasos: cliente → recepción y prendas → proceso y recojo → envío.
+     Recepción y prendas van juntos porque el peso o el conteo se toman con la
+     bolsa delante del cliente y de ahí sale el servicio. */
+  const TOTAL_PASOS = 4;
+
+  /** Pinta el paso indicado (sin validar): barra, panel y scroll. */
+  function pintarPaso(n) {
+    const objetivo = Math.max(1, Math.min(TOTAL_PASOS, Number(n) || 1));
+    estado.paso = objetivo;
+
+    $$('#pasosNav .paso-tab').forEach((tab) => {
+      const num = Number(tab.dataset.ir);
+      tab.classList.toggle('is-active', num === objetivo);
+      tab.classList.toggle('is-done', num < objetivo);
+      if (num === objetivo) tab.setAttribute('aria-current', 'step');
+      else tab.removeAttribute('aria-current');
+    });
+
+    $$('#vista-nuevo .paso-panel').forEach((panel) => {
+      panel.classList.toggle('is-active', Number(panel.dataset.paso) === objetivo);
+    });
+
+    if (objetivo === 3) renderProcesos();
+    if (objetivo === 4) renderResumenFinal();
+
+    const vista = $('#vista-nuevo');
+    if (vista && vista.classList.contains('is-active')) {
+      window.scrollTo({ top: Math.max(0, vista.offsetTop - 90), behavior: 'smooth' });
+    }
+  }
+
+  /** Avanza solo si el paso actual está completo; retroceder es libre. */
+  function irAPaso(destino) {
+    const objetivo = Math.max(1, Math.min(TOTAL_PASOS, Number(destino) || 1));
+    if (objetivo > estado.paso) {
+      for (let p = estado.paso; p < objetivo; p += 1) {
+        if (!esPasoValido(p)) {
+          pintarPaso(p);
+          return false;
+        }
+      }
+    }
+    pintarPaso(objetivo);
+    return true;
+  }
+
+  /** Cada paso se confirma con su propio botón: se valida lo suyo y nada más. */
+  function esPasoValido(n) {
+    if (n === 1) {
+      const telefono = $('#cliTelefono').value.replace(/\D/g, '');
+      const nombre = $('#cliNombre').value.trim();
+      const email = $('#cliEmail').value.trim();
+      if (telefono.length < 6) {
+        marcarInvalido('#cliTelefono');
+        toast('Ingresa un teléfono válido del cliente');
+        return false;
+      }
+      if (nombre.length < 3) {
+        marcarInvalido('#cliNombre');
+        toast('Ingresa el nombre del cliente');
+        return false;
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        marcarInvalido('#cliEmail');
+        toast('El correo no tiene un formato válido');
+        return false;
+      }
+      return true;
+    }
+
+    /* Paso 2 = recepción y prendas: se exige la medida y al menos un servicio. */
+    if (n === 2) {
+      if (estado.recepcion.modo === 'peso') {
+        if (!(parseNum($('#pesoRecepcion').value) > 0)) {
+          marcarInvalido('#pesoRecepcion');
+          toast('Escribe el peso que marcó la balanza');
+          return false;
+        }
+      } else if (!(Math.round(parseNum($('#conteoRecepcion').value)) >= 1)) {
+        marcarInvalido('#conteoRecepcion');
+        toast('Escribe cuántas prendas contaste');
+        return false;
+      }
+
+      if (!estado.items.length) {
+        toast('Agrega al menos un servicio del catálogo');
+        return false;
+      }
+      const pesoSinDato = estado.items.find((i) => i.tipo === 'peso' && parseNum(i.cantidad) <= 0);
+      if (pesoSinDato) {
+        toast(`Ingresa el peso de «${pesoSinDato.nombre}»`);
+        return false;
+      }
+      return true;
+    }
+
+    if (n === 3) {
+      const fecha = fechaRecojo();
+      if (!fecha) {
+        marcarSemanaInvalida();
+        toast('Elige el día de recojo en la tira');
+        return false;
+      }
+      if (fecha.getTime() < Date.now() - 5 * 60 * 1000) {
+        marcarSemanaInvalida();
+        toast('La fecha de recojo ya pasó, elige otra');
+        return false;
+      }
+      if (esDomicilio() && $('#direccionEntrega').value.trim().length < 5) {
+        marcarInvalido('#direccionEntrega');
+        toast('Escribe la dirección del envío a domicilio');
+        return false;
+      }
+      return true;
+    }
+
+    return true;
+  }
+
+  /** Recepción: por peso (balanza) o por conteo (prendas). */
+  function seleccionarModoRecepcion(modo) {
+    estado.recepcion.modo = modo === 'unidad' ? 'unidad' : 'peso';
+    $$('#recepcionModos .modo-card').forEach((boton) => {
+      const activo = boton.dataset.modo === estado.recepcion.modo;
+      boton.classList.toggle('is-active', activo);
+      boton.setAttribute('aria-checked', String(activo));
+    });
+    $('#campoPesoRecepcion').classList.toggle('oculto', estado.recepcion.modo !== 'peso');
+    $('#campoConteoRecepcion').classList.toggle('oculto', estado.recepcion.modo !== 'unidad');
+    renderCatalogo();
+  }
+
+  /** Proceso vigente: el elegido a mano o el que se deduce del día de recojo. */
+  function procesoActual() {
+    if (estado.procesoSel) return estado.procesoSel;
+    return procesoDeDias(diasDeProceso());
+  }
+
+  function renderProcesos() {
+    const contenedor = $('#procesoChips');
+    if (!contenedor) return;
+    contenedor.innerHTML = CONFIG.tiempos
+      .map((tiempo) => {
+        const activo = Boolean(estado.procesoSel) && estado.procesoSel.id === tiempo.id;
+        return `<button class="proceso-chip${activo ? ' is-active' : ''}" type="button" data-proceso="${tiempo.id}" aria-pressed="${activo}">
+          <strong>${esc(tiempo.nombre)}</strong>
+        </button>`;
+      })
+      .join('');
+  }
+
+  /** Elegir proceso calcula la fecha de recojo y la deja seleccionada. */
+  function elegirProceso(id) {
+    const tiempo = CONFIG.tiempos.find((t) => t.id === id);
+    if (!tiempo) return;
+
+    estado.procesoSel = tiempo;
+    const listo = calcularListo(new Date(), tiempo.horas);
+    const iso = isoDia(listo);
+    const hora = `${String(listo.getHours()).padStart(2, '0')}:${String(listo.getMinutes()).padStart(2, '0')}`;
+
+    estado.recojoManual = false;
+    $('#horaRecojo').value = hora;
+    $('#recojo').value = `${iso}T${hora}`;
+
+    const dias = Math.round((soloDia(listo) - soloDia(new Date())) / 86400000);
+    estado.offsetSemana = Math.max(0, Math.floor(dias / 7) * 7);
+
+    renderSemana();
+    renderProcesos();
+    actualizarHintRecojo(true);
+    actualizarAviso();
+    refrescarResumen();
+  }
+
+  /** Resumen del paso 5: lo que verá el operador antes de confirmar. */
+  function renderResumenFinal() {
+    const caja = $('#resumenFinal');
+    if (!caja) return;
+
+    const totales = calcularTotales();
+    const pago = calcularPago(totales.total);
+    const recojo = fechaRecojo();
+    const proceso = procesoActual();
+    const nombre = $('#cliNombre').value.trim() || 'Cliente';
+    const telefono = $('#cliTelefono').value.trim();
+    const codigo = estado.clienteExistente ? estado.clienteExistente.codigo : $('#cliCodigo').value || Store.nextClienteCode();
+    const domicilio = esDomicilio();
+    const aviso = recojo ? fechaAviso(recojo) : { dia: 'sin fecha', hora: '' };
+
+    const filas = estado.items
+      .map(
+        (item) => `<div class="recibo-fila">
+          <span>${esc(item.nombre)}${item.tipo === 'peso' ? ` · ${Number(parseNum(item.cantidad)).toFixed(2)} kg` : ` × ${item.cantidad}`}</span>
+          <strong>${money(calcularItem(item).subtotal)}</strong>
+        </div>`
+      )
+      .join('');
+
+    caja.innerHTML = `
+      <div class="recibo-head">
+        <div>
+          <p class="eyebrow">Cliente</p>
+          <strong>${esc(nombre)}</strong>
+          <span class="muted small">${esc(codigo)} · ${esc(telefono)}</span>
+        </div>
+        <div class="recibo-total">
+          <span>Total a pagar</span>
+          <strong>${money(totales.total)}</strong>
+        </div>
+      </div>
+
+      <div class="recibo-bloque">
+        <p class="eyebrow">Prendas recibidas</p>
+        ${filas || '<p class="muted small">Sin prendas agregadas.</p>'}
+        <p class="muted small">${[
+          totales.prendas > 0 ? `${totales.prendas} prenda(s)` : '',
+          totales.peso > 0 ? `${Number(totales.peso).toFixed(2)} kg` : '',
+          estado.recepcion.modo === 'peso' ? 'recibido por peso' : 'recibido por conteo'
+        ].filter(Boolean).join(' · ')}</p>
+        ${totales.descuento > 0 ? `<p class="muted small">Descuento aplicado: ${money(totales.descuento)}</p>` : ''}
+        ${totales.envio > 0 ? `<p class="muted small">Envío a domicilio: ${money(totales.envio)}${$('#direccionEntrega').value.trim() ? ` · ${esc($('#direccionEntrega').value.trim())}` : ''}</p>` : ''}
+      </div>
+
+      <div class="recibo-bloque">
+        <p class="eyebrow">Proceso y recojo</p>
+        <strong>${esc(proceso.nombre)}</strong>
+        <p class="muted small">${domicilio ? 'Entrega a domicilio' : 'Recojo en tienda'} · ${esc(aviso.dia)} desde las ${esc(aviso.hora)}</p>
+      </div>
+
+      <div class="recibo-bloque">
+        <p class="eyebrow">Pago</p>
+        <strong>${esc(etiquetaPago(pago.estado).nombre)}</strong>
+        <p class="muted small">Pagado ${money(pago.monto)}${pago.metodo ? ` con ${esc(pago.metodo)}` : ''} · saldo ${money(pago.saldo)}</p>
+      </div>
+
+      ${$('#notas').value.trim() ? `<div class="recibo-bloque"><p class="eyebrow">Observaciones</p><p class="muted small">${esc($('#notas').value.trim())}</p></div>` : ''}
+    `;
   }
 
   /* ------------------------------ Validación ---------------------------- */
@@ -1455,7 +1731,12 @@
 
   /* ---------------------------- Registrar orden ------------------------- */
 
-  function registrar(enviarAviso) {
+  /**
+   * Cierra el ingreso. `accion`: 'whatsapp' | 'imprimir' | 'ninguno'.
+   * Se acepta también true/false por compatibilidad con llamadas antiguas.
+   */
+  function registrar(accion) {
+    const cierre = accion === true ? 'whatsapp' : accion === false ? 'ninguno' : accion || 'whatsapp';
     if (!validar()) return;
 
     const totales = calcularTotales();
@@ -1463,7 +1744,8 @@
       toast('Atención: el total es S/ 0.00. Revisa las tarifas en «Precios».');
     }
     const pago = calcularPago(totales.total);
-    const proceso = procesoDeDias(diasDeProceso());
+    // El proceso guardado es el que se ve en el paso 3, no una deducción.
+    const proceso = procesoActual();
     const recojo = fechaRecojo();
     const nombre = $('#cliNombre').value.trim();
     const telefono = $('#cliTelefono').value.trim();
@@ -1536,7 +1818,8 @@
     renderBanner();
     abrirModalExito(orden);
 
-    if (enviarAviso) abrirWhatsApp(orden);
+    if (cierre === 'whatsapp') abrirWhatsApp(orden);
+    else if (cierre === 'imprimir') imprimirOrden(orden);
   }
 
   function limpiarFormulario() {
@@ -1556,6 +1839,17 @@
     $('#clienteEncontrado').classList.add('oculto');
     $('#cliHint').textContent = 'Si el número ya está registrado, cargamos sus datos.';
     $('#cliHint').classList.remove('ok');
+
+    // Vuelta al paso 1 con la recepción en blanco.
+    estado.recepcion = { modo: 'peso', peso: '', unidades: '' };
+    estado.procesoSel = null;
+    estado.verTodos = false;
+    if ($('#pesoRecepcion')) $('#pesoRecepcion').value = '';
+    if ($('#conteoRecepcion')) $('#conteoRecepcion').value = '';
+    seleccionarModoRecepcion('peso');
+    renderProcesos();
+    pintarPaso(1);
+
     renderItems();
     actualizarCodigoCliente();
     limpiarRecojo();
@@ -2925,6 +3219,39 @@
     });
     $('#cliNombre').addEventListener('input', actualizarAviso);
 
+    // Asistente: pasos con confirmación
+    $$('#pasosNav .paso-tab').forEach((tab) => {
+      tab.addEventListener('click', () => irAPaso(tab.dataset.ir));
+    });
+    $('#pasoSiguiente1').addEventListener('click', () => irAPaso(2));
+    $('#pasoAtras2').addEventListener('click', () => irAPaso(1));
+    $('#pasoSiguiente2').addEventListener('click', () => irAPaso(3));
+    $('#pasoAtras3').addEventListener('click', () => irAPaso(2));
+    $('#pasoSiguiente3').addEventListener('click', () => irAPaso(4));
+    $('#pasoAtras4').addEventListener('click', () => irAPaso(3));
+
+    // Recepción: peso o conteo
+    $('#recepcionModos').addEventListener('click', (evento) => {
+      const boton = evento.target.closest('[data-modo]');
+      if (boton) seleccionarModoRecepcion(boton.dataset.modo);
+    });
+    $('#pesoRecepcion').addEventListener('input', (evento) => {
+      estado.recepcion.peso = evento.target.value;
+    });
+    $('#conteoRecepcion').addEventListener('input', (evento) => {
+      estado.recepcion.unidades = evento.target.value;
+    });
+    $('#btnVerTodos').addEventListener('click', () => {
+      estado.verTodos = !estado.verTodos;
+      renderCatalogo();
+    });
+
+    // Proceso sugerido
+    $('#procesoChips').addEventListener('click', (evento) => {
+      const chip = evento.target.closest('[data-proceso]');
+      if (chip) elegirProceso(chip.dataset.proceso);
+    });
+
     // Recojo y entrega
     $('#recojo').addEventListener('change', () => {
       estado.recojoManual = true;
@@ -2996,8 +3323,9 @@
       });
     });
 
-    $('#btnRegistrar').addEventListener('click', () => registrar(true));
-    $('#btnRegistrarSin').addEventListener('click', () => registrar(false));
+    $('#btnRegistrar').addEventListener('click', () => registrar('whatsapp'));
+    $('#btnRegistrarImprimir').addEventListener('click', () => registrar('imprimir'));
+    $('#btnRegistrarSin').addEventListener('click', () => registrar('ninguno'));
 
     // Órdenes
     $('#buscarOrden').addEventListener('input', renderOrdenes);
