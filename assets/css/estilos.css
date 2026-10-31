@@ -408,6 +408,12 @@ svg { display: block; }
   border: 1px solid var(--line);
 }
 
+/* Chip de sincronización: un color por situación real. */
+#syncEstado[data-estado="nube"] { background: var(--ok-soft); color: var(--ok); border-color: #bfe6cb; }
+#syncEstado[data-estado="offline"] { background: var(--warn-soft); color: var(--warn); border-color: #f3d9ac; }
+#syncEstado[data-estado="error"] { background: #fdecec; color: #b91c1c; border-color: #f5c2c2; }
+#syncEstado[data-estado="local"] { background: #f1f5f4; color: var(--ink-soft); border-color: var(--line); }
+
 /* --------------------------- 5. Formularios ----------------------------- */
 .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .field label { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }

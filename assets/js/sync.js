@@ -16,7 +16,7 @@ const Sync = (() => {
   const negocioId = typeof NEGOCIO_ID !== "undefined" && NEGOCIO_ID ? NEGOCIO_ID : "lavamili";
   const configurado = Boolean(cfg.apiKey && cfg.projectId && cfg.appId);
 
-  const estado = { modo: configurado ? "nube" : "local", conectado: false, pendientes: 0, error: "" };
+  const estado = { modo: configurado ? "nube" : "local", sesion: false, conectado: false, pendientes: 0, error: "" };
 
   const ultimo = { ordenes: new Map(), clientes: new Map(), precios: {} };
   const primerSnapshot = { ordenes: true, clientes: true, precios: true };
@@ -47,6 +47,7 @@ const Sync = (() => {
   }
 
   function avisarEstado() {
+    estado.sesion = Boolean(usuario);
     const vista = textoEstado();
     oyentesEstado.forEach((fn) => {
       try { fn(estado, vista); } catch (error) { console.warn("[sync] oyente de estado falló", error); }
@@ -56,8 +57,17 @@ const Sync = (() => {
   function textoEstado() {
     if (estado.modo === "local") return { texto: "Local", titulo: "Datos guardados solo en este navegador (Firebase no configurado)." };
     if (estado.modo === "error") return { texto: "Error de conexión", titulo: estado.error || "No se pudo iniciar Firebase." };
+    /* Sin sesión de Firebase (entrada con usuario y PIN) no hay nada que
+       sincronizar. Antes este caso caía en «Sin conexión», que se lee como
+       falta de internet y no es eso. */
+    if (!usuario) {
+      return {
+        texto: "Solo este equipo",
+        titulo: "Entraste con usuario y PIN: los datos se guardan en este navegador. Con tu correo y contraseña de Firebase se sincronizan con la nube."
+      };
+    }
     if (estado.pendientes > 0) return { texto: "Sincronizando…", titulo: "Enviando cambios a Firestore." };
-    if (!estado.conectado) return { texto: "Sin conexión", titulo: "Trabajando con los datos locales. Se sincronizará al recuperar internet." };
+    if (!estado.conectado) return { texto: "Sin conexión", titulo: "Sin internet: sigues trabajando con los datos locales. Se enviará todo al volver la conexión." };
     return { texto: "En la nube", titulo: "Sincronizado con Firestore." };
   }
 

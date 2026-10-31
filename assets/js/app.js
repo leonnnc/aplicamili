@@ -246,7 +246,13 @@
     if (!el) return;
     el.textContent = vista.texto;
     el.title = vista.titulo;
-    el.dataset.estado = info.modo === 'nube' && !info.conectado ? 'offline' : info.modo;
+    /* Tono del chip: sin sesión de Firebase no es «sin internet», es trabajo
+       local; solo se pinta como desconexión si hay sesión y se perdió la red. */
+    el.dataset.estado = info.modo === 'error'
+      ? 'error'
+      : info.modo === 'local' || !info.sesion
+        ? 'local'
+        : info.conectado ? 'nube' : 'offline';
   }
 
   /** En modo local el campo vuelve a ser usuario + PIN (solo desarrollo). */
