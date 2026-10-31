@@ -1010,7 +1010,9 @@
       unidad: servicio.unidad,
       cantidad,
       tarifa: tarifaDe(servicio),
-      minPeso: servicio.minPeso || 0
+      minPeso: servicio.minPeso || 0,
+      // Si el operador escribe un kg a mano, la balanza deja de mandar en esa fila.
+      manual: false
     });
 
     renderItems();
@@ -1539,6 +1541,22 @@
     }
 
     return true;
+  }
+
+  /**
+   * La balanza manda sobre el primer servicio por peso: al cambiar el peso
+   * recibido se actualiza esa fila, salvo que el operador haya escrito un kg
+   * distinto a mano en ella.
+   */
+  function aplicarPesoRecepcion() {
+    const peso = parseNum(estado.recepcion.peso);
+    if (!(peso > 0)) return;
+    const fila = estado.items.find((item) => item.tipo === 'peso' && !item.manual);
+    if (!fila) return;
+    if (Number(fila.cantidad) === peso) return;
+    fila.cantidad = peso;
+    renderItems();
+    refrescarResumen();
   }
 
   /** Recepción: por peso (balanza) o por conteo (prendas). */
@@ -3180,6 +3198,8 @@
       const item = estado.items.find((i) => i.key === fila.dataset.key);
       if (!item) return;
       item[campo.dataset.campo] = campo.value;
+      // Un kg escrito a mano manda sobre la balanza; si se deja vacío, vuelve a mandar la balanza.
+      if (campo.dataset.campo === 'cantidad') item.manual = String(campo.value).trim() !== '';
       refrescarSubtotales();
       refrescarResumen();
       const nota = fila.querySelector('.item-note');
@@ -3237,6 +3257,7 @@
     });
     $('#pesoRecepcion').addEventListener('input', (evento) => {
       estado.recepcion.peso = evento.target.value;
+      aplicarPesoRecepcion();
     });
     $('#conteoRecepcion').addEventListener('input', (evento) => {
       estado.recepcion.unidades = evento.target.value;
