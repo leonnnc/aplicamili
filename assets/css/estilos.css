@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LavaMili · Hoja de estilos
+   Lavandería Mili · Hoja de estilos
    1. Tokens y base
    2. Acceso de operadores
    3. Barra superior y navegación
@@ -2057,4 +2057,142 @@ details.preview[open] summary::before { content: "▾ "; }
   .recepcion-strip { padding: 12px; }
   .recepcion-strip .recepcion-modos { flex-direction: column; }
   .recepcion-medida { flex: 1 1 100%; min-width: 0; }
+}
+
+/* --------------- Intro de marca: 3 s, moderna y saltable --------------- */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background-color: #041c19;
+  background-image: radial-gradient(120% 90% at 50% 0%, #0f766e 0%, #0a4f49 38%, #041c19 100%);
+  color: #eafaf7;
+  transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+.intro.is-out { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.intro-grid {
+  position: absolute;
+  inset: -45% -20%;
+  background-image:
+    linear-gradient(to right, rgba(45, 212, 191, 0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(45, 212, 191, 0.16) 1px, transparent 1px);
+  background-size: 46px 46px;
+  transform: perspective(560px) rotateX(58deg) translateY(8%);
+  -webkit-mask-image: radial-gradient(closest-side, #000 32%, transparent 76%);
+  mask-image: radial-gradient(closest-side, #000 32%, transparent 76%);
+  animation: introRejilla var(--intro, 3000ms) linear forwards;
+}
+@keyframes introRejilla {
+  from { background-position: 0 0, 0 0; opacity: 0.2; }
+  to { background-position: 0 46px, 0 46px; opacity: 0.6; }
+}
+
+.intro-halo {
+  position: absolute;
+  width: min(74vw, 520px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.45), rgba(45, 212, 191, 0) 62%);
+  filter: blur(4px);
+  animation: introHalo var(--intro, 3000ms) ease-out forwards;
+}
+@keyframes introHalo {
+  0% { transform: scale(0.55); opacity: 0.15; }
+  55% { opacity: 0.95; }
+  100% { transform: scale(1.18); opacity: 0.5; }
+}
+
+.intro-centro {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.intro-mark {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  color: #ecfdf9;
+  border: 1px solid rgba(94, 234, 212, 0.55);
+  background: rgba(13, 148, 136, 0.28);
+  animation: introMarca var(--intro, 3000ms) ease-out forwards;
+}
+.intro-mark svg { width: 30px; height: 30px; }
+@keyframes introMarca {
+  0% { transform: scale(0.72) rotate(-8deg); opacity: 0; box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.55); }
+  35% { transform: scale(1) rotate(0deg); opacity: 1; box-shadow: 0 0 0 14px rgba(45, 212, 191, 0.12); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; box-shadow: 0 0 0 26px rgba(45, 212, 191, 0), inset 0 0 26px rgba(45, 212, 191, 0.35); }
+}
+
+.intro-titulo {
+  margin: 6px 0 0;
+  font-size: clamp(26px, 6vw, 46px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  animation: introTexto 0.8s 0.15s ease-out both;
+}
+.intro-titulo em {
+  font-style: normal;
+  background: linear-gradient(100deg, #5eead4, #99f6e4 42%, #fef3c7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.intro-sub {
+  margin: 0;
+  font-size: clamp(10px, 2.4vw, 13px);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(204, 251, 241, 0.75);
+  animation: introTexto 0.8s 0.35s ease-out both;
+}
+@keyframes introTexto {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.intro-barra {
+  margin-top: 18px;
+  width: clamp(140px, 42vw, 240px);
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(204, 251, 241, 0.18);
+  overflow: hidden;
+}
+.intro-barra span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2dd4bf, #99f6e4);
+  animation: introBarra var(--intro, 3000ms) linear forwards;
+}
+@keyframes introBarra {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.intro-pie {
+  position: absolute;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(204, 251, 241, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-grid, .intro-halo, .intro-mark, .intro-titulo, .intro-sub { animation: none; }
+  .intro-titulo, .intro-sub { opacity: 1; }
 }

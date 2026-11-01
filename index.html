@@ -5,12 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
-  <title>LavaMili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261031e" />
+  <title>Lavandería Mili · Control de lavandería</title>
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261031f" />
 </head>
 <body>
 
-  <!-- ===================== ACCESO DE OPERADORES ===================== -->
+  <!-- ===================== INTRO DE MARCA (3 s) ===================== -->
+  <div class="intro" id="intro" aria-hidden="true">
+    <div class="intro-grid"></div>
+    <div class="intro-halo"></div>
+    <div class="intro-centro">
+      <span class="intro-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <rect x="3.5" y="2.5" width="17" height="19" rx="3" />
+          <circle cx="12" cy="14" r="4.2" />
+          <path d="M7 6.2h.01M10 6.2h.01" />
+        </svg>
+      </span>
+      <h1 class="intro-titulo">Lavandería <em>Mili</em></h1>
+      <p class="intro-sub">Control de servicios</p>
+      <div class="intro-barra"><span></span></div>
+    </div>
+    <p class="intro-pie">Lavandería &amp; tintorería</p>
+  </div>
   <div class="login" id="pantallaLogin">
     <div class="login-panel">
       <div class="brand">
@@ -22,7 +39,7 @@
           </svg>
         </span>
         <div class="brand-text">
-          <strong>LavaMili</strong>
+          <strong>Lavandería Mili</strong>
           <span>Lavandería &amp; tintorería</span>
         </div>
       </div>
@@ -90,7 +107,7 @@
             </svg>
           </span>
           <div class="brand-text">
-            <strong>LavaMili</strong>
+            <strong>Lavandería Mili</strong>
             <span>Control de servicios</span>
           </div>
         </div>
@@ -602,16 +619,16 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261031e"></script>
-  <script src="assets/js/firebase-config.js?v=20261031e"></script>
-  <script src="assets/js/store.js?v=20261031e"></script>
+  <script src="assets/js/config.js?v=20261031f"></script>
+  <script src="assets/js/firebase-config.js?v=20261031f"></script>
+  <script src="assets/js/store.js?v=20261031f"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261031e"></script>
-  <script defer src="assets/js/app.js?v=20261031e"></script>
+  <script defer src="assets/js/sync.js?v=20261031f"></script>
+  <script defer src="assets/js/app.js?v=20261031f"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LavaMili · Persistencia local
+   Lavandería Mili · Persistencia local
    Guarda órdenes y clientes en localStorage. Si el navegador lo bloquea,
    cae a memoria para que la sesión siga funcionando.
    ========================================================================== */

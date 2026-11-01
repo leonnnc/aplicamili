@@ -1,5 +1,5 @@
 ﻿/* ==========================================================================
-   LavaMili · Lógica de la aplicación
+   Lavandería Mili · Lógica de la aplicación
    ========================================================================== */
 
 (function () {
@@ -2370,7 +2370,7 @@
         cerrarModal();
         toast(`Respaldo restaurado: ${datos.ordenes.length} órdenes`);
       } catch (error) {
-        toast('El archivo no es un respaldo válido de LavaMili');
+        toast('El archivo no es un respaldo válido de Lavandería Mili');
       }
     };
     lector.readAsText(archivo);
@@ -3512,9 +3512,39 @@
     });
   }
 
+  /* --------------------------- Intro de marca --------------------------- */
+
+  /* Tres segundos de presentación al abrir. Se puede saltar con un toque o
+     Escape, y no retiene al operador: si tarda, la app ya cargó detrás. */
+  function iniciarIntro() {
+    const intro = document.getElementById('intro');
+    if (!intro) return;
+
+    const reducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duracion = reducido ? 1200 : 3000;
+    intro.style.setProperty('--intro', `${duracion}ms`);
+
+    let saliendo = false;
+    const salir = () => {
+      if (saliendo) return;
+      saliendo = true;
+      intro.classList.add('is-out');
+      window.setTimeout(() => intro.remove(), 500);
+    };
+
+    window.setTimeout(salir, duracion);
+    intro.addEventListener('click', salir);
+    intro.addEventListener('touchstart', salir, { passive: true });
+    document.addEventListener('keydown', (evento) => {
+      if (evento.key === 'Escape' || evento.key === 'Enter') salir();
+    });
+  }
+
   /* ------------------------------- Arranque ----------------------------- */
 
   function init() {
+    iniciarIntro();
+
     // Descarta precios guardados por versiones anteriores: todo nace en 0.00.
     Store.migrarPrecios();
 

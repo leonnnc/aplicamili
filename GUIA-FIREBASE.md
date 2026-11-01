@@ -1,4 +1,4 @@
-# Conectar LavaMili a Firebase
+# Conectar Lavandería Mili a Firebase
 
 Guía para crear el proyecto, pegar las credenciales y dejar la app sincronizando
 entre computadora, tablet y celular. Tiempo estimado: 20–30 minutos.
@@ -35,7 +35,7 @@ remoto se refleja en el espejo local.
 ## Paso 2 · Registrar la app web
 
 1. En la pantalla del proyecto, pulsa el ícono **`</>`** (Web).
-2. Apodo: `LavaMili Web`. **No** marques Firebase Hosting todavía.
+2. Apodo: `Lavandería Mili Web`. **No** marques Firebase Hosting todavía.
 3. Pulsa **Registrar app**. Firebase muestra un bloque `firebaseConfig`.
 4. Copia esos valores (los usarás en el paso 6) y cierra el asistente.
 

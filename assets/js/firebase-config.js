@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LavaMili · Configuración de Firebase
+   Lavandería Mili · Configuración de Firebase
    --------------------------------------------------------------------------
    Valores del proyecto "aplicalav". Estas claves son públicas por diseño
    (viajan en el navegador); la seguridad real está en firestore.rules y en

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LavaMili · Sincronización con Firebase (Firestore + Authentication)
+   Lavandería Mili · Sincronización con Firebase (Firestore + Authentication)
    --------------------------------------------------------------------------
    Estrategia: la app sigue leyendo y escribiendo en localStorage (rápido y
    funciona sin internet). Esta capa:

@@ -1,11 +1,11 @@
-/* ==========================================================================
-   LavaMili · Configuración del negocio, catálogo y operadores
+﻿/* ==========================================================================
+   Lavandería Mili · Configuración del negocio, catálogo y operadores
    Todo lo editable del sistema vive aquí: precios, horarios, mensajes.
    ========================================================================== */
 
 const CONFIG = {
   negocio: {
-    nombre: 'LavaMili',
+    nombre: 'Lavandería Mili',
     rubro: 'Lavandería & tintorería',
     direccion: 'Av. Los Álamos 245, Lima',
     telefono: '+51 987 654 321',
