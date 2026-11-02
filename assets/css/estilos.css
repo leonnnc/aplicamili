@@ -2399,3 +2399,27 @@ details.preview[open] summary::before { content: "▾ "; }
   font-weight: 700;
   letter-spacing: 0.05em;
 }
+
+/* Acciones de cabecera: una sola línea, sin saltos, y compactas en móvil. */
+.acciones-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+.acciones-cabecera .btn-accion {
+  padding: 7px 10px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.acciones-cabecera .btn-salir {
+  border-color: var(--line-strong);
+}
+@media (max-width: 900px) {
+  .acciones-cabecera .btn-accion { padding: 6px 7px; font-size: 12px; }
+}
+@media (max-width: 720px) {
+  .acciones-cabecera { gap: 2px; }
+  .acciones-cabecera .btn-accion { padding: 6px 6px; font-size: 11.5px; }
+}

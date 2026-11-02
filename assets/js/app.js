@@ -219,9 +219,19 @@
     }
   }
 
+  /* El mostrador ve «Perfiles» y «Salir»; lo demás es de administración. */
+  function aplicarPermisosCabecera() {
+    const admin = esAdmin();
+    document.querySelectorAll('.solo-admin').forEach((elemento) => {
+      elemento.hidden = !admin;
+    });
+    if (!admin && $('#panelPrecios').classList.contains('is-open')) cerrarPrecios();
+  }
+
   function entrarAlSistema() {
     $('#pantallaLogin').classList.add('oculto');
     $('#app').classList.remove('oculto');
+    aplicarPermisosCabecera();
     actualizarBadgeTickets();
     $('#usuarioChip').textContent = `${estado.operador.nombre} · ${estado.operador.rol}`;
     actualizarFechas();
@@ -549,6 +559,11 @@
   }
 
   function abrirPrecios() {
+    // El tarifario es de administración; el mostrador ya no lo abre.
+    if (!esAdmin()) {
+      toast('Solo el administrador entra al tarifario');
+      return;
+    }
     if ($('#modal').classList.contains('is-open')) cerrarModal();
     const overrides = Store.getPrecios();
     borradorPrecios = {};
@@ -2333,6 +2348,11 @@
   }
 
   function abrirDatos() {
+    // Datos (respaldo, importación, borrado) es solo de administración.
+    if (!esAdmin()) {
+      toast('Solo el administrador accede a Datos');
+      return;
+    }
     const ordenes = Store.getOrdenes().length;
     const clientes = Store.getClientes().length;
     abrirModal(`
