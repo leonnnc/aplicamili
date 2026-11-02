@@ -1481,10 +1481,24 @@
       banner.innerHTML = `<span class="badge">Cliente registrado</span>
         <strong>${esc(encontrado.nombre)}</strong>
         <span class="muted">${esc(encontrado.codigo)} · ${stats.ordenes} servicio(s) · ${money(stats.total)} acumulado</span>`;
-      $('#cliHint').textContent = 'Datos cargados desde la base de clientes.';
+      // Editar la ficha de un cliente ya registrado es cosa de administración.
+      const soloLectura = !esAdmin();
+      ['#cliNombre', '#cliEmail'].forEach((sel) => {
+        const campo = $(sel);
+        campo.readOnly = soloLectura;
+        campo.classList.toggle('solo-lectura', soloLectura);
+      });
+      $('#cliHint').textContent = soloLectura
+        ? 'Datos del cliente registrado. Solo el administrador puede cambiarlos.'
+        : 'Datos cargados desde la base de clientes.';
       $('#cliHint').classList.add('ok');
     } else {
       estado.clienteExistente = null;
+      ['#cliNombre', '#cliEmail'].forEach((sel) => {
+        const campo = $(sel);
+        campo.readOnly = false;
+        campo.classList.remove('solo-lectura');
+      });
       banner.classList.add('oculto');
       banner.innerHTML = '';
       $('#cliHint').textContent = 'Cliente nuevo: se registrará con el código generado.';
@@ -1840,7 +1854,14 @@
     const telefono = $('#cliTelefono').value.trim();
     const email = $('#cliEmail').value.trim();
 
-    const cliente = Store.upsertCliente({ telefono, nombre, email });
+    /* El mostrador puede dar de alta clientes nuevos, pero no cambiar los
+       datos de uno que ya existe: eso queda para administración. */
+    const existente = Store.buscarPorTelefono(telefono);
+    const datosCliente = !esAdmin() && existente
+      ? { telefono: existente.telefono, nombre: existente.nombre, email: existente.email }
+      : { telefono, nombre, email };
+
+    const cliente = Store.upsertCliente(datosCliente);
     const numeroServicio = Store.siguienteServicio(cliente.id, cliente.codigo);
 
     const orden = Store.addOrden({
@@ -1849,7 +1870,8 @@
       clienteCodigo: cliente.codigo,
       servicioN: numeroServicio,
       codigoServicio: `${cliente.codigo}-S${String(numeroServicio).padStart(2, '0')}`,
-      cliente: { nombre, telefono, email },
+      // Se guarda lo que quedó en la ficha, no lo que había escrito en pantalla.
+      cliente: { nombre: datosCliente.nombre, telefono: datosCliente.telefono, email: datosCliente.email },
       items: estado.items.map((item) => ({
         servicioId: item.servicioId,
         nombre: item.nombre,
@@ -2907,9 +2929,72 @@
           <td class="right">${c.stats.ordenes}</td>
           <td class="right code-cell">${money(c.stats.total)}</td>
           <td>${c.stats.ultima ? fmtFecha.format(new Date(c.stats.ultima)) : '—'}</td>
+          <td class="right">${esAdmin() ? `<button class="btn-mini" type="button" data-editar-cliente="${esc(c.id)}">Editar</button>` : ''}</td>
         </tr>`
       )
       .join('');
+  }
+
+  /** Ficha del cliente: solo administración puede cambiar los datos. */
+  function modalCliente(id) {
+    if (!esAdmin()) {
+      toast('Solo el administrador edita clientes');
+      return;
+    }
+    const cliente = Store.getClientes().find((c) => c.id === id);
+    if (!cliente) return;
+    const stats = Store.statsCliente(cliente);
+
+    abrirModal(`
+      <h2>${esc(cliente.nombre)}</h2>
+      <p class="muted small">${esc(cliente.codigo)} · ${stats.ordenes} ${stats.ordenes === 1 ? 'orden' : 'órdenes'} · ${money(stats.total)} de consumo</p>
+      <form id="formCliente" class="form-codigo" autocomplete="off">
+        <label class="field">
+          <span>Nombre y apellidos</span>
+          <input id="cliEditNombre" type="text" value="${esc(cliente.nombre)}" required />
+        </label>
+        <label class="field">
+          <span>Teléfono / WhatsApp</span>
+          <input id="cliEditTelefono" type="tel" value="${esc(cliente.telefono)}" required />
+        </label>
+        <label class="field">
+          <span>Correo electrónico</span>
+          <input id="cliEditEmail" type="email" value="${esc(cliente.email || '')}" />
+        </label>
+        <p class="form-error" id="cliEditError" role="alert"></p>
+        <div class="modal-acciones">
+          <button class="btn btn-primary" type="submit">Guardar cambios</button>
+          <button class="btn btn-outline" type="button" data-accion="cerrar">Cancelar</button>
+        </div>
+      </form>
+    `);
+
+    $('#formCliente').addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      const nombre = $('#cliEditNombre').value.trim();
+      const telefono = $('#cliEditTelefono').value.trim();
+      const email = $('#cliEditEmail').value.trim();
+      const error = $('#cliEditError');
+
+      if (nombre.length < 3) {
+        error.textContent = 'Escribe el nombre completo.';
+        return;
+      }
+      if (telefono.replace(/\D/g, '').length < 6) {
+        error.textContent = 'El teléfono no parece válido.';
+        return;
+      }
+      const otro = Store.buscarPorTelefono(telefono);
+      if (otro && otro.id !== id) {
+        error.textContent = 'Ese teléfono ya pertenece a otro cliente.';
+        return;
+      }
+
+      Store.actualizarCliente(id, { nombre, telefono, email });
+      cerrarModal();
+      renderClientes();
+      toast('Ficha del cliente actualizada');
+    });
   }
 
   /* -------------------------------- Tablero ----------------------------- */
@@ -3511,6 +3596,10 @@
     });
 
     $('#buscarCliente').addEventListener('input', renderClientes);
+    $('#tablaClientes').addEventListener('click', (evento) => {
+      const boton = evento.target.closest('[data-editar-cliente]');
+      if (boton) modalCliente(boton.dataset.editarCliente);
+    });
 
     $('#recojosHoy').addEventListener('click', (evento) => {
       const boton = evento.target.closest('[data-wa]');

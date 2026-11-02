@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
   <title>Lavandería Mili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261102d" />
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261102e" />
 </head>
 <body>
 
@@ -528,6 +528,7 @@
                   <th class="right">Órdenes</th>
                   <th class="right">Consumo</th>
                   <th>Última visita</th>
+                  <th class="solo-admin right">Editar</th>
                 </tr>
               </thead>
               <tbody id="tablaClientes"></tbody>
@@ -673,16 +674,16 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261102d"></script>
-  <script src="assets/js/firebase-config.js?v=20261102d"></script>
-  <script src="assets/js/store.js?v=20261102d"></script>
+  <script src="assets/js/config.js?v=20261102e"></script>
+  <script src="assets/js/firebase-config.js?v=20261102e"></script>
+  <script src="assets/js/store.js?v=20261102e"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261102d"></script>
-  <script defer src="assets/js/app.js?v=20261102d"></script>
+  <script defer src="assets/js/sync.js?v=20261102e"></script>
+  <script defer src="assets/js/app.js?v=20261102e"></script>
 </body>
 </html>

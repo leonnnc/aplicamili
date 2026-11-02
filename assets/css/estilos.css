@@ -2483,3 +2483,11 @@ details.preview[open] summary::before { content: "▾ "; }
   .user-chip { padding: 5px 8px; font-size: 12px; }
   .menu-cuenta { min-width: 170px; }
 }
+
+/* Campos de solo lectura (ficha de cliente para el mostrador). */
+input.solo-lectura,
+textarea.solo-lectura {
+  background: #f2f6f5;
+  color: var(--muted);
+  cursor: not-allowed;
+}

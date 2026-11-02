@@ -221,6 +221,24 @@ const Store = (() => {
     return Math.max(max, previos.length) + 1;
   }
 
+  /** Edita la ficha de un cliente existente (solo desde administración). */
+  function actualizarCliente(id, cambios) {
+    const lista = getClientes();
+    const indice = lista.findIndex((c) => c.id === id);
+    if (indice < 0) return null;
+    const actualizado = {
+      ...lista[indice],
+      ...cambios,
+      nombre: String((cambios.nombre !== undefined ? cambios.nombre : lista[indice].nombre) || '').trim(),
+      telefono: String((cambios.telefono !== undefined ? cambios.telefono : lista[indice].telefono) || '').trim(),
+      email: String((cambios.email !== undefined ? cambios.email : lista[indice].email) || '').trim()
+    };
+    actualizado.clave = claveTelefono(actualizado.telefono);
+    lista[indice] = actualizado;
+    setClientes(lista);
+    return actualizado;
+  }
+
   function statsCliente(cliente) {
     const ordenes = getOrdenes().filter((o) => o.clienteId === cliente.id || o.clienteCodigo === cliente.codigo);
     return {
@@ -475,6 +493,7 @@ const Store = (() => {
     setClientes,
     buscarPorTelefono,
     upsertCliente,
+    actualizarCliente,
     nextClienteCode,
     siguienteServicio,
     statsCliente,
