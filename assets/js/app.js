@@ -219,6 +219,14 @@
     }
   }
 
+  /** Cierra el menú de cuenta (chip de usuario). */
+  function cerrarMenuCuenta() {
+    const menu = document.getElementById('menuCuenta');
+    const boton = document.getElementById('btnMenu');
+    if (menu) menu.hidden = true;
+    if (boton) boton.setAttribute('aria-expanded', 'false');
+  }
+
   /* El mostrador ve «Perfiles» y «Salir»; lo demás es de administración. */
   function aplicarPermisosCabecera() {
     const admin = esAdmin();
@@ -256,6 +264,7 @@
     } catch (error) { /* nada */ }
     limpiarSesionAutorizacion();
     // Evita dejar paneles abiertos (y editables) tras salir.
+    cerrarMenuCuenta();
     cerrarModal();
     cerrarPrecios();
     cerrarPerfiles();
@@ -3209,6 +3218,25 @@
     $('#modalCerrar').addEventListener('click', cerrarModal);
 
     // Panel de precios
+    // Menú de cuenta: un botón despliega Perfiles, Precios, Datos y Salir.
+    const botonMenu = $('#btnMenu');
+    const menuCuenta = $('#menuCuenta');
+    botonMenu.addEventListener('click', (evento) => {
+      evento.stopPropagation();
+      const abierto = !menuCuenta.hidden;
+      menuCuenta.hidden = abierto;
+      botonMenu.setAttribute('aria-expanded', String(!abierto));
+    });
+    menuCuenta.addEventListener('click', (evento) => {
+      if (evento.target.closest('.menu-item')) cerrarMenuCuenta();
+    });
+    document.addEventListener('click', (evento) => {
+      if (!evento.target.closest('#cuenta')) cerrarMenuCuenta();
+    });
+    document.addEventListener('keydown', (evento) => {
+      if (evento.key === 'Escape') cerrarMenuCuenta();
+    });
+
     $('#btnPerfiles').addEventListener('click', abrirPerfiles);
     $('#cerrarPerfiles').addEventListener('click', cerrarPerfiles);
     $('#btnNuevoUsuario').addEventListener('click', () => modalUsuario(null));
