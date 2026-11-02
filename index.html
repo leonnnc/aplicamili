@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
   <title>Lavandería Mili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261102e" />
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261102g" />
 </head>
 <body>
 
@@ -240,11 +240,12 @@
                 <span class="step">2</span>
                 <div class="card-head-text">
                   <h2>Recepción y prendas</h2>
-                  <p>Se recibe la bolsa pesándola o contando, y en el mismo paso se eligen los servicios.</p>
+                  <p>Primero se eligen los servicios; al final se registra el peso o el conteo de la bolsa.</p>
                 </div>
               </header>
 
-              <div class="recepcion-strip">
+              <div class="recepcion-modos-barra">
+                <span class="muted small">Forma de recepción</span>
                 <div class="recepcion-modos" id="recepcionModos" role="radiogroup" aria-label="Forma de recepción">
                   <button class="modo-card is-active" type="button" data-modo="peso" role="radio" aria-checked="true">
                     <strong>Por peso</strong>
@@ -254,19 +255,6 @@
                     <strong>Por conteo</strong>
                     <span>Se cuentan las prendas y se cobra por unidad.</span>
                   </button>
-                </div>
-
-                <div class="recepcion-medida">
-                  <div class="field" id="campoPesoRecepcion">
-                    <label for="pesoRecepcion">Peso en la balanza (kg) <span class="req">*</span></label>
-                    <input id="pesoRecepcion" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-                    <p class="hint">Mueve los kilos del servicio por peso; puedes ajustar fila por fila.</p>
-                  </div>
-                  <div class="field oculto" id="campoConteoRecepcion">
-                    <label for="conteoRecepcion">Prendas contadas <span class="req">*</span></label>
-                    <input id="conteoRecepcion" type="number" min="1" step="1" inputmode="numeric" placeholder="0" />
-                    <p class="hint">Se usa como cantidad del primer servicio por unidad.</p>
-                  </div>
                 </div>
               </div>
 
@@ -284,9 +272,26 @@
               </div>
               <div class="items" id="items"></div>
 
+              <div class="recepcion-medida-bloque">
+                <div class="medida-texto">
+                  <strong>Medida de la bolsa</strong>
+                  <span class="muted small">Se registra frente al cliente, al cerrar la recepción.</span>
+                </div>
+                <div class="field" id="campoPesoRecepcion">
+                  <label for="pesoRecepcion">Peso en la balanza (kg) <span class="req">*</span></label>
+                  <input id="pesoRecepcion" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+                  <p class="hint">Mueve los kilos del servicio por peso; puedes ajustar fila por fila.</p>
+                </div>
+                <div class="field oculto" id="campoConteoRecepcion">
+                  <label for="conteoRecepcion">Prendas contadas <span class="req">*</span></label>
+                  <input id="conteoRecepcion" type="number" min="1" step="1" inputmode="numeric" placeholder="0" />
+                  <p class="hint">Se usa como cantidad del primer servicio por unidad.</p>
+                </div>
+              </div>
+
               <div class="paso-nav">
-                <button class="btn btn-outline" id="pasoAtras2" type="button">Atrás</button>
                 <button class="btn btn-primary" id="pasoSiguiente2" type="button">Continuar al proceso</button>
+                <button class="btn btn-outline" id="pasoAtras2" type="button">Atrás</button>
               </div>
             </section>
 
@@ -389,8 +394,8 @@
               <div class="aviso-preview" id="avisoPreview"></div>
 
               <div class="paso-nav">
-                <button class="btn btn-outline" id="pasoAtras3" type="button">Atrás</button>
-                <button class="btn btn-primary" id="pasoSiguiente3" type="button">Ver resumen</button>
+                 <button class="btn btn-primary" id="pasoSiguiente3" type="button">Ver resumen</button>
+                 <button class="btn btn-outline" id="pasoAtras3" type="button">Atrás</button>
               </div>
             </section>
 
@@ -407,10 +412,10 @@
               <div class="recibo" id="resumenFinal"></div>
 
               <div class="paso-nav paso-nav-final">
-                <button class="btn btn-outline" id="pasoAtras4" type="button">Atrás</button>
-                <button class="btn btn-primary" id="btnRegistrar" type="button">Enviar por WhatsApp</button>
-                <button class="btn btn-outline" id="btnRegistrarImprimir" type="button">Imprimir comprobante</button>
-                <button class="btn btn-ghost" id="btnRegistrarSin" type="button">Registrar sin aviso</button>
+                 <button class="btn btn-primary" id="btnRegistrar" type="button">Enviar por WhatsApp</button>
+                 <button class="btn btn-outline" id="btnRegistrarImprimir" type="button">Imprimir comprobante</button>
+                 <button class="btn btn-ghost" id="btnRegistrarSin" type="button">Registrar sin aviso</button>
+                 <button class="btn btn-outline" id="pasoAtras4" type="button">Atrás</button>
               </div>
             </section>
           </div>
@@ -674,16 +679,16 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261102e"></script>
-  <script src="assets/js/firebase-config.js?v=20261102e"></script>
-  <script src="assets/js/store.js?v=20261102e"></script>
+  <script src="assets/js/config.js?v=20261102g"></script>
+  <script src="assets/js/firebase-config.js?v=20261102g"></script>
+  <script src="assets/js/store.js?v=20261102g"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261102e"></script>
-  <script defer src="assets/js/app.js?v=20261102e"></script>
+  <script defer src="assets/js/sync.js?v=20261102g"></script>
+  <script defer src="assets/js/app.js?v=20261102g"></script>
 </body>
 </html>
