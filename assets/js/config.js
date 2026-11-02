@@ -68,6 +68,13 @@ const CONFIG = {
     correosAdmin: []
   },
 
+  /* Datos de contacto que se muestran en el panel de soporte. */
+  soporte: {
+    correo: '',
+    whatsapp: '',
+    horario: 'Lun a Sáb · 9:00 a 19:00'
+  },
+
   // Operadores con acceso al mostrador.
   operadores: [
     { usuario: 'mili', pin: '1234', nombre: 'Mili Rojas', rol: 'Administradora' },

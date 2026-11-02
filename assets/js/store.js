@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    Lavandería Mili · Persistencia local
    Guarda órdenes y clientes en localStorage. Si el navegador lo bloquea,
    cae a memoria para que la sesión siga funcionando.
@@ -12,8 +12,11 @@ const Store = (() => {
     precios: `${NS}.precios`,
     autorizacion: `${NS}.autorizacion`,
     solicitudes: `${NS}.solicitudes`,
-    auditoria: `${NS}.auditoria`
+    auditoria: `${NS}.auditoria`,
+    usuarios: `${NS}.usuarios`,
+    tickets: `${NS}.tickets`
   };
+
 
   const memoria = {};
   let disponible = true;
@@ -84,6 +87,8 @@ const Store = (() => {
       if (datos.autorizacion !== undefined) escribir(KEYS.autorizacion, datos.autorizacion || null);
       if (Array.isArray(datos.solicitudes)) escribir(KEYS.solicitudes, datos.solicitudes);
       if (Array.isArray(datos.auditoria)) escribir(KEYS.auditoria, datos.auditoria);
+      if (Array.isArray(datos.usuarios)) escribir(KEYS.usuarios, datos.usuarios);
+      if (Array.isArray(datos.tickets)) escribir(KEYS.tickets, datos.tickets);
     } finally {
       silencio = false;
     }
@@ -341,6 +346,101 @@ const Store = (() => {
     escribir(KEYS.auditoria, Array.isArray(lista) ? lista.slice(0, 300) : []);
   }
 
+  /* ------------------------------ Usuarios ------------------------------ */
+
+  /* Directorio de trabajo: lo que se crea en «Perfiles». Los operadores de
+     config.js son la semilla inicial; desde ahí manda este directorio. */
+  function getUsuarios() {
+    const lista = leer(KEYS.usuarios, []);
+    return Array.isArray(lista) ? lista : [];
+  }
+
+  function setUsuarios(lista) {
+    escribir(KEYS.usuarios, Array.isArray(lista) ? lista : []);
+  }
+
+  function addUsuario(datos) {
+    const lista = getUsuarios();
+    const nuevo = {
+      id: nuevoId('u'),
+      usuario: String(datos.usuario || '').trim(),
+      nombre: String(datos.nombre || '').trim(),
+      rol: String(datos.rol || 'Operador'),
+      clave: String(datos.clave || ''),
+      activo: datos.activo !== false,
+      creado: new Date().toISOString(),
+      ultimoAcceso: ''
+    };
+    lista.push(nuevo);
+    setUsuarios(lista);
+    return nuevo;
+  }
+
+  function actualizarUsuario(id, cambios) {
+    const lista = getUsuarios();
+    const i = lista.findIndex((u) => u.id === id);
+    if (i < 0) return null;
+    lista[i] = { ...lista[i], ...cambios };
+    setUsuarios(lista);
+    return lista[i];
+  }
+
+  function borrarUsuario(id) {
+    setUsuarios(getUsuarios().filter((u) => u.id !== id));
+  }
+
+  /* ------------------------------ Soporte ------------------------------- */
+
+  function getTickets() {
+    const lista = leer(KEYS.tickets, []);
+    return Array.isArray(lista) ? lista : [];
+  }
+
+  function setTickets(lista) {
+    escribir(KEYS.tickets, Array.isArray(lista) ? lista : []);
+  }
+
+  function addTicket(datos) {
+    const lista = getTickets();
+    const ticket = {
+      id: nuevoId('t'),
+      asunto: String(datos.asunto || '').trim(),
+      categoria: String(datos.categoria || 'Otro'),
+      prioridad: String(datos.prioridad || 'Normal'),
+      mensaje: String(datos.mensaje || '').trim(),
+      autor: String(datos.autor || ''),
+      rol: String(datos.rol || ''),
+      fecha: new Date().toISOString(),
+      estado: 'abierta',
+      atendidoPor: '',
+      respuestas: []
+    };
+    lista.unshift(ticket);
+    setTickets(lista.slice(0, 200));
+    return ticket;
+  }
+
+  function actualizarTicket(id, cambios) {
+    const lista = getTickets();
+    const i = lista.findIndex((t) => t.id === id);
+    if (i < 0) return null;
+    lista[i] = { ...lista[i], ...cambios };
+    setTickets(lista);
+    return lista[i];
+  }
+
+  function responderTicket(id, respuesta) {
+    const lista = getTickets();
+    const i = lista.findIndex((t) => t.id === id);
+    if (i < 0) return null;
+    const ticket = lista[i];
+    ticket.respuestas = Array.isArray(ticket.respuestas) ? ticket.respuestas : [];
+    ticket.respuestas.push({ ...respuesta, fecha: new Date().toISOString() });
+    if (ticket.estado === 'abierta') ticket.estado = 'en proceso';
+    setTickets(lista);
+    return ticket;
+  }
+
   function snapshot() {
     return {
       generado: new Date().toISOString(),
@@ -392,6 +492,16 @@ const Store = (() => {
     getAuditoria,
     setAuditoria,
     registrarAuditoria,
+    getUsuarios,
+    setUsuarios,
+    addUsuario,
+    actualizarUsuario,
+    borrarUsuario,
+    getTickets,
+    setTickets,
+    addTicket,
+    actualizarTicket,
+    responderTicket,
     claveTelefono,
     snapshot,
     reemplazarTodo

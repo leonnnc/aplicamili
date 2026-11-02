@@ -131,6 +131,42 @@
   const usaFirebaseAuth = () =>
     Sync.hayNube && (typeof FIREBASE_LOGIN_OBLIGATORIO === 'undefined' || FIREBASE_LOGIN_OBLIGATORIO || !esEquipoLocal);
 
+  /* ------------------------ Directorio de usuarios ----------------------- */
+
+  /* Los operadores de config.js son la semilla. Desde que el administrador
+     toca algo en «Perfiles», manda el directorio guardado. */
+  function sembrarUsuarios() {
+    if (Store.getUsuarios().length) return;
+    CONFIG.operadores.forEach((o) => {
+      Store.addUsuario({ usuario: o.usuario, nombre: o.nombre, rol: o.rol, clave: o.pin });
+    });
+  }
+
+  function directorio() {
+    const mapa = new Map();
+    CONFIG.operadores.forEach((o) => {
+      mapa.set(String(o.usuario).toLowerCase(), {
+        id: `cfg_${o.usuario}`,
+        usuario: o.usuario,
+        nombre: o.nombre,
+        rol: String(o.rol || 'Operador'),
+        clave: String(o.pin || ''),
+        activo: true,
+        origen: 'config',
+        creado: '',
+        ultimoAcceso: ''
+      });
+    });
+    Store.getUsuarios().forEach((u) => {
+      const clave = String(u.usuario || '').toLowerCase();
+      mapa.set(clave, { ...(mapa.get(clave) || {}), ...u });
+    });
+    return [...mapa.values()];
+  }
+
+  const buscarUsuario = (usuario) =>
+    directorio().find((u) => String(u.usuario).toLowerCase() === String(usuario || '').trim().toLowerCase()) || null;
+
   async function iniciarSesion(evento) {
     evento.preventDefault();
     const usuario = $('#usuario').value.trim();
@@ -153,9 +189,14 @@
         }
         estado.operador = await Sync.entrar(usuario, clave);
       } else {
-        const encontrado = CONFIG.operadores.find((o) => o.usuario === usuario.toLowerCase() && o.pin === clave);
-        if (!encontrado) throw new Error('Usuario o PIN incorrecto. Verifica tus datos.');
+        const encontrado = buscarUsuario(usuario);
+        if (!encontrado) throw new Error('Usuario o clave incorrectos. Verifica tus datos.');
+        if (encontrado.activo === false) throw new Error('Esa cuenta está desactivada.');
+        if (String(encontrado.clave) !== String(clave)) throw new Error('Usuario o clave incorrectos. Verifica tus datos.');
         estado.operador = { usuario: encontrado.usuario, nombre: encontrado.nombre, rol: encontrado.rol };
+        if (encontrado.id && !String(encontrado.id).startsWith('cfg_')) {
+          Store.actualizarUsuario(encontrado.id, { ultimoAcceso: new Date().toISOString() });
+        }
       }
 
       try {
@@ -181,6 +222,7 @@
   function entrarAlSistema() {
     $('#pantallaLogin').classList.add('oculto');
     $('#app').classList.remove('oculto');
+    actualizarBadgeTickets();
     $('#usuarioChip').textContent = `${estado.operador.nombre} · ${estado.operador.rol}`;
     actualizarFechas();
     renderCatalogo();
@@ -203,9 +245,12 @@
       sessionStorage.removeItem(SESION_KEY);
     } catch (error) { /* nada */ }
     limpiarSesionAutorizacion();
-    // Evita dejar el tarifario abierto (y editable) tras salir.
+    // Evita dejar paneles abiertos (y editables) tras salir.
     cerrarModal();
     cerrarPrecios();
+    cerrarPerfiles();
+    const chip = document.getElementById('usuarioChip');
+    if (chip) chip.textContent = '';
     if (Sync.hayNube) Sync.salir();
     estado.operador = null;
     estado.items = [];
@@ -245,6 +290,8 @@
     renderResumen();
     renderBanner();
     if (estado.vista === 'tablero') renderTablero();
+    actualizarBadgeTickets();
+    if ($('#panelPerfiles').classList.contains('is-open')) renderPerfiles();
   }
 
   function pintarEstadoSync(info, vista) {
@@ -2055,8 +2102,9 @@
     // El modal (z-index 60) queda por encima del panel de precios (55): si el
     // panel sigue abierto, su botón de cerrar queda tapado por el fondo del
     // modal. Se cierra antes de abrir.
-    if ($('#panelPrecios').classList.contains('is-open')) cerrarPrecios();
-    $('#modalContenido').innerHTML = html;
+  if ($('#panelPrecios').classList.contains('is-open')) cerrarPrecios();
+  if ($('#panelPerfiles').classList.contains('is-open')) cerrarPerfiles();
+  $('#modalContenido').innerHTML = html;
     $('#modal').classList.add('is-open');
     $('#modal').setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-abierto');
@@ -3141,6 +3189,31 @@
     $('#modalCerrar').addEventListener('click', cerrarModal);
 
     // Panel de precios
+    $('#btnPerfiles').addEventListener('click', abrirPerfiles);
+    $('#cerrarPerfiles').addEventListener('click', cerrarPerfiles);
+    $('#btnNuevoUsuario').addEventListener('click', () => modalUsuario(null));
+    $('#btnNuevoTicket').addEventListener('click', modalNuevoTicket);
+
+    // Delegación: el contenido del panel se vuelve a dibujar a cada cambio.
+    $('#panelPerfiles').addEventListener('click', (evento) => {
+      const clave = evento.target.closest('[data-clave]');
+      if (clave) { modalClave(clave.dataset.clave); return; }
+      const editar = evento.target.closest('[data-editar]');
+      if (editar) { modalUsuario(editar.dataset.editar); return; }
+      const ver = evento.target.closest('[data-ver]');
+      if (ver) { modalTicket(ver.dataset.ver); return; }
+      const cerrar = evento.target.closest('[data-cerrar-ticket]');
+      if (cerrar) { cerrarTicket(cerrar.dataset.cerrarTicket); return; }
+      const estadoBoton = evento.target.closest('[data-estado]');
+      if (estadoBoton) {
+        const cuenta = directorio().find((u) => u.id === estadoBoton.dataset.estado);
+        if (!cuenta) return;
+        Store.actualizarUsuario(cuenta.id, { activo: cuenta.activo === false });
+        renderPerfiles();
+        toast(cuenta.activo === false ? 'Cuenta activada' : 'Cuenta desactivada');
+      }
+    });
+
     $('#btnPrecios').addEventListener('click', abrirPrecios);
     $('#cerrarPrecios').addEventListener('click', cerrarPrecios);
     $('#guardarPrecios').addEventListener('click', guardarPrecios);
@@ -3159,6 +3232,10 @@
 
     $('#panelPrecios').addEventListener('click', (evento) => {
       if (evento.target.closest('[data-cerrar-panel]')) cerrarPrecios();
+    });
+
+    $('#panelPerfiles').addEventListener('click', (evento) => {
+      if (evento.target.closest('[data-cerrar-perfiles]')) cerrarPerfiles();
     });
 
     $('#listaPrecios').addEventListener('input', (evento) => {
@@ -3406,6 +3483,12 @@
         return;
       }
 
+      const cerrarTk = evento.target.closest('[data-cerrar-ticket]');
+      if (cerrarTk) {
+        cerrarTicket(cerrarTk.dataset.cerrarTicket);
+        return;
+      }
+
       const rechazar = evento.target.closest('[data-rechazar]');
       if (rechazar) {
         rechazarSolicitud(rechazar.dataset.rechazar);
@@ -3540,10 +3623,359 @@
     });
   }
 
+  /* ------------------------- Perfiles y soporte -------------------------- */
+
+  const CATEGORIAS_TICKET = ['Acceso', 'Precios', 'Órdenes', 'Sincronización', 'Sugerencia', 'Otro'];
+  const NOMBRE_ESTADO = { abierta: 'Abierta', 'en proceso': 'En proceso', cerrada: 'Cerrada' };
+
+  const iniciales = (nombre) =>
+    String(nombre || '?')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0].toUpperCase())
+      .join('');
+
+  const fechaCorta = (iso) => {
+    const fecha = new Date(iso);
+    if (!Number.isFinite(fecha.getTime())) return '';
+    return fecha.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) + ' · ' + fmtHora24.format(fecha);
+  };
+
+  function abrirPerfiles() {
+    if ($('#modal').classList.contains('is-open')) cerrarModal();
+    if ($('#panelPrecios').classList.contains('is-open')) cerrarPrecios();
+    renderPerfiles();
+    $('#panelPerfiles').classList.add('is-open');
+    $('#panelPerfiles').setAttribute('aria-hidden', 'false');
+  }
+
+  function cerrarPerfiles() {
+    $('#panelPerfiles').classList.remove('is-open');
+    $('#panelPerfiles').setAttribute('aria-hidden', 'true');
+  }
+
+  /* Contador del botón: al admin le cuentan los tickets sin cerrar; al
+     operador, los suyos que siguen en curso. */
+  function actualizarBadgeTickets() {
+    const tickets = Store.getTickets();
+    const pendientes = esAdmin()
+      ? tickets.filter((t) => t.estado !== 'cerrada')
+      : tickets.filter((t) => t.estado !== 'cerrada' && t.autor === (estado.operador && estado.operador.nombre));
+    const badge = $('#badgeTickets');
+    badge.hidden = pendientes.length === 0;
+    badge.textContent = String(pendientes.length);
+  }
+
+  function renderPerfiles() {
+    const yo = estado.operador || { nombre: 'Sin sesión', usuario: '', rol: '' };
+    const admin = esAdmin();
+    const usuarios = directorio();
+
+    // --- mi cuenta ---
+    const propia = buscarUsuario(yo.usuario);
+    $('#miPerfil').innerHTML = `
+      <div class="perfil-head"><h3>Mi cuenta</h3></div>
+      <div class="perfil-card">
+        <span class="perfil-avatar">${esc(iniciales(yo.nombre))}</span>
+        <div class="perfil-datos">
+          <strong>${esc(yo.nombre)}</strong>
+          <span>${esc(yo.rol)} · ${esc(yo.usuario)}</span>
+          ${propia && propia.ultimoAcceso ? `<span class="muted small">Último acceso: ${fechaCorta(propia.ultimoAcceso)}</span>` : ''}
+        </div>
+      </div>
+      <div class="perfil-acciones">
+        <button class="btn btn-outline btn-mini" type="button" data-clave="${propia ? esc(propia.id) : ''}">Cambiar mi clave</button>
+      </div>`;
+
+    // --- usuarios (solo administración) ---
+    const seccion = $('#seccionUsuarios');
+    seccion.hidden = !admin;
+    if (admin) {
+      $('#listaUsuarios').innerHTML = usuarios
+        .map((u) => {
+          const soyYo = String(u.usuario).toLowerCase() === String(yo.usuario).toLowerCase();
+          const estadoTexto = u.activo === false ? 'Desactivado' : 'Activo';
+          return `<div class="usuario-row${u.activo === false ? ' is-off' : ''}">
+            <span class="perfil-avatar chico">${esc(iniciales(u.nombre))}</span>
+            <div class="usuario-info">
+              <strong>${esc(u.nombre)}${soyYo ? ' <span class="marca-yo">tú</span>' : ''}</strong>
+              <span>${esc(u.usuario)} · ${esc(u.rol)} · ${estadoTexto}</span>
+            </div>
+            <div class="usuario-acciones">
+              <button class="btn btn-mini" type="button" data-editar="${esc(u.id)}">Editar</button>
+              <button class="btn btn-mini" type="button" data-clave="${esc(u.id)}">Clave</button>
+              ${soyYo ? '' : `<button class="btn btn-mini" type="button" data-estado="${esc(u.id)}">${u.activo === false ? 'Activar' : 'Desactivar'}</button>`}
+            </div>
+          </div>`;
+        })
+        .join('');
+    }
+
+    // --- soporte ---
+    const tickets = Store.getTickets()
+      .filter((t) => admin || t.autor === yo.nombre)
+      .slice(0, 40);
+    $('#soporteInfo').textContent = CONFIG.soporte && CONFIG.soporte.correo
+      ? `Escríbenos también a ${CONFIG.soporte.correo}${CONFIG.soporte.horario ? ' · ' + CONFIG.soporte.horario : ''}`
+      : 'Cuéntanos qué pasa y queda registrado para que lo revisemos.';
+
+    $('#listaTickets').innerHTML = tickets.length
+      ? tickets
+          .map(
+            (t) => `<button class="ticket-row" type="button" data-ver="${esc(t.id)}">
+              <span class="ticket-texto">
+                <strong>${esc(t.asunto)}</strong>
+                <span>${esc(t.autor)} · ${fechaCorta(t.fecha)} · ${esc(t.categoria)}</span>
+              </span>
+              <span class="ticket-estado e-${esc(String(t.estado).replace(' ', '-'))}">${esc(NOMBRE_ESTADO[t.estado] || t.estado)}</span>
+            </button>`
+          )
+          .join('')
+      : '<p class="muted small">Aún no hay tickets.</p>';
+
+    actualizarBadgeTickets();
+  }
+
+  /* --------------------------- Modales de cuenta -------------------------- */
+
+  function modalClave(idUsuario) {
+    const esPropia = String(idUsuario) === String((buscarUsuario(estado.operador.usuario) || {}).id);
+    const usuario = directorio().find((u) => u.id === idUsuario);
+    if (!usuario) {
+      toast('No encontré esa cuenta');
+      return;
+    }
+
+    abrirModal(`
+      <h2>${esPropia ? 'Cambiar mi clave' : 'Cambiar clave de ' + esc(usuario.nombre)}</h2>
+      <p class="muted small">${esPropia ? 'Necesitas tu clave actual.' : 'El cambio se aplica al instante en este equipo.'}</p>
+      <form id="formClave" class="form-codigo" autocomplete="off">
+        ${esPropia ? `<label class="field"><span>Clave actual</span><input id="claveActual" type="password" autocomplete="current-password" required /></label>` : ''}
+        <label class="field"><span>Clave nueva</span><input id="claveNueva" type="password" minlength="4" autocomplete="new-password" required /></label>
+        <label class="field"><span>Repite la clave</span><input id="claveRepite" type="password" minlength="4" autocomplete="new-password" required /></label>
+        <p class="form-error" id="claveError" role="alert"></p>
+        <div class="modal-acciones">
+          <button class="btn btn-primary" type="submit">Guardar clave</button>
+          <button class="btn btn-outline" type="button" data-accion="cerrar">Cancelar</button>
+        </div>
+      </form>`);
+
+    $('#formClave').addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      const nueva = $('#claveNueva').value.trim();
+      const repite = $('#claveRepite').value.trim();
+      const error = $('#claveError');
+
+      if (esPropia && $('#claveActual').value.trim() !== String(usuario.clave)) {
+        error.textContent = 'La clave actual no es correcta.';
+        return;
+      }
+      if (nueva.length < 4) {
+        error.textContent = 'Usa al menos 4 caracteres.';
+        return;
+      }
+      if (nueva !== repite) {
+        error.textContent = 'Las claves no coinciden.';
+        return;
+      }
+
+      Store.actualizarUsuario(usuario.id, { clave: nueva });
+      Store.registrarAuditoria({
+        operador: estado.operador.nombre,
+        rol: estado.operador.rol,
+        via: 'cuenta',
+        cambios: [],
+        detalle: esPropia ? 'Cambió su clave' : `Cambió la clave de ${usuario.nombre}`
+      });
+      cerrarModal();
+      renderPerfiles();
+      toast('Clave actualizada');
+    });
+
+    setTimeout(() => { const campo = $('#claveActual') || $('#claveNueva'); if (campo) campo.focus(); }, 100);
+  }
+
+  function modalUsuario(id) {
+    if (!esAdmin()) {
+      toast('Solo el administrador gestiona usuarios');
+      return;
+    }
+    const usuario = id ? directorio().find((u) => u.id === id) : null;
+    const editando = Boolean(usuario);
+
+    abrirModal(`
+      <h2>${editando ? 'Editar usuario' : 'Nuevo usuario'}</h2>
+      <p class="muted small">${editando ? 'El cambio se guarda en este equipo y se sincroniza.' : 'Podrá entrar con el usuario y la clave que definas aquí.'}</p>
+      <form id="formUsuario" class="form-codigo" autocomplete="off">
+        <label class="field"><span>Nombre completo</span><input id="uNombre" type="text" value="${editando ? esc(usuario.nombre) : ''}" required /></label>
+        <label class="field"><span>Usuario</span><input id="uUsuario" type="text" value="${editando ? esc(usuario.usuario) : ''}" ${editando ? 'readonly' : ''} required /></label>
+        <label class="field"><span>Rol</span>
+          <select id="uRol">
+            <option value="Operador"${editando && !/admin/i.test(usuario.rol) ? ' selected' : ''}>Operador</option>
+            <option value="Administrador"${editando && /admin/i.test(usuario.rol) ? ' selected' : ''}>Administrador</option>
+          </select>
+        </label>
+        ${editando ? '' : '<label class="field"><span>Clave</span><input id="uClave" type="password" minlength="4" autocomplete="new-password" required /></label>'}
+        <p class="form-error" id="usuarioError" role="alert"></p>
+        <div class="modal-acciones">
+          <button class="btn btn-primary" type="submit">${editando ? 'Guardar cambios' : 'Crear usuario'}</button>
+          <button class="btn btn-outline" type="button" data-accion="cerrar">Cancelar</button>
+        </div>
+      </form>`);
+
+    $('#formUsuario').addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      const nombre = $('#uNombre').value.trim();
+      const claveUsuario = $('#uUsuario').value.trim().toLowerCase();
+      const rol = $('#uRol').value;
+      const error = $('#usuarioError');
+
+      if (nombre.length < 3) {
+        error.textContent = 'Escribe el nombre completo.';
+        return;
+      }
+      if (!/^[a-z0-9._-]{3,20}$/.test(claveUsuario)) {
+        error.textContent = 'El usuario va sin espacios: 3 a 20 letras, números, punto o guion.';
+        return;
+      }
+
+      if (editando) {
+        Store.actualizarUsuario(usuario.id, { nombre, rol });
+        toast('Usuario actualizado');
+      } else {
+        if (buscarUsuario(claveUsuario)) {
+          error.textContent = 'Ese usuario ya existe.';
+          return;
+        }
+        const clave = $('#uClave').value.trim();
+        if (clave.length < 4) {
+          error.textContent = 'La clave necesita al menos 4 caracteres.';
+          return;
+        }
+        Store.addUsuario({ usuario: claveUsuario, nombre, rol, clave });
+        toast('Usuario creado');
+      }
+
+      Store.registrarAuditoria({
+        operador: estado.operador.nombre,
+        rol: estado.operador.rol,
+        via: 'cuenta',
+        cambios: [],
+        detalle: editando ? `Editó el usuario ${claveUsuario}` : `Creó el usuario ${claveUsuario}`
+      });
+      cerrarModal();
+      renderPerfiles();
+    });
+
+    setTimeout(() => $('#uNombre').focus(), 100);
+  }
+
+  /* --------------------------- Modales de soporte ------------------------- */
+
+  function modalNuevoTicket() {
+    abrirModal(`
+      <h2>Nuevo ticket de soporte</h2>
+      <p class="muted small">Queda registrado con tu nombre y la fecha. Soporte lo verá en su bandeja.</p>
+      <form id="formTicket" class="form-codigo" autocomplete="off">
+        <label class="field"><span>Asunto</span><input id="tAsunto" type="text" maxlength="80" placeholder="Ej. no puedo cambiar un precio" required /></label>
+        <label class="field"><span>Tema</span>
+          <select id="tCategoria">${CATEGORIAS_TICKET.map((c) => `<option>${c}</option>`).join('')}</select>
+        </label>
+        <label class="field"><span>Prioridad</span>
+          <select id="tPrioridad"><option>Normal</option><option>Alta</option><option>Urgente</option></select>
+        </label>
+        <label class="field"><span>¿Qué pasa?</span><textarea id="tMensaje" rows="3" maxlength="600" placeholder="Cuéntalo con el detalle que puedas." required></textarea></label>
+        <p class="form-error" id="ticketError" role="alert"></p>
+        <div class="modal-acciones">
+          <button class="btn btn-primary" type="submit">Enviar a soporte</button>
+          <button class="btn btn-outline" type="button" data-accion="cerrar">Cancelar</button>
+        </div>
+      </form>`);
+
+    $('#formTicket').addEventListener('submit', (evento) => {
+      evento.preventDefault();
+      const asunto = $('#tAsunto').value.trim();
+      const mensaje = $('#tMensaje').value.trim();
+      if (asunto.length < 4 || mensaje.length < 8) {
+        $('#ticketError').textContent = 'Pon un asunto y cuéntanos un poco más.';
+        return;
+      }
+      Store.addTicket({
+        asunto,
+        categoria: $('#tCategoria').value,
+        prioridad: $('#tPrioridad').value,
+        mensaje,
+        autor: estado.operador.nombre,
+        rol: estado.operador.rol
+      });
+      cerrarModal();
+      abrirPerfiles();
+      toast('Ticket enviado a soporte');
+    });
+
+    setTimeout(() => $('#tAsunto').focus(), 100);
+  }
+
+  function modalTicket(id) {
+    const ticket = Store.getTickets().find((t) => t.id === id);
+    if (!ticket) {
+      toast('Ese ticket ya no existe');
+      return;
+    }
+    const admin = esAdmin();
+    const respuestas = (ticket.respuestas || [])
+      .map((r) => `<div class="ticket-msg"><strong>${esc(r.autor)}</strong><span>${fechaCorta(r.fecha)}</span><p>${esc(r.texto)}</p></div>`)
+      .join('');
+
+    abrirModal(`
+      <h2>${esc(ticket.asunto)}</h2>
+      <p class="muted small">${esc(ticket.autor)} · ${fechaCorta(ticket.fecha)} · ${esc(ticket.categoria)} · ${esc(NOMBRE_ESTADO[ticket.estado] || ticket.estado)}</p>
+      <div class="ticket-hilo">
+        <div class="ticket-msg"><strong>${esc(ticket.autor)}</strong><span>${fechaCorta(ticket.fecha)}</span><p>${esc(ticket.mensaje)}</p></div>
+        ${respuestas}
+      </div>
+      ${admin && ticket.estado !== 'cerrada' ? `
+        <form id="formRespuesta" class="form-codigo">
+          <label class="field"><span>Respuesta</span><textarea id="rTexto" rows="2" placeholder="Qué le dices al operador" required></textarea></label>
+          <div class="modal-acciones">
+            <button class="btn btn-primary" type="submit">Responder</button>
+            <button class="btn btn-outline" type="button" data-cerrar-ticket="${esc(ticket.id)}">Cerrar ticket</button>
+          </div>
+        </form>` : ''}
+      ${!admin && ticket.estado !== 'cerrada' ? `<div class="modal-acciones"><button class="btn btn-outline" type="button" data-cerrar-ticket="${esc(ticket.id)}">Marcar como resuelto</button></div>` : ''}
+      <div class="modal-acciones"><button class="btn btn-ghost" type="button" data-accion="cerrar">Volver</button></div>`);
+
+    const form = $('#formRespuesta');
+    if (form) {
+      form.addEventListener('submit', (evento) => {
+        evento.preventDefault();
+        const texto = $('#rTexto').value.trim();
+        if (texto.length < 2) return;
+        Store.responderTicket(ticket.id, { autor: estado.operador.nombre, rol: estado.operador.rol, texto });
+        cerrarModal();
+        abrirPerfiles();
+        toast('Respuesta guardada');
+      });
+    }
+  }
+
+  function cerrarTicket(id) {
+    const ticket = Store.getTickets().find((t) => t.id === id);
+    if (!ticket) return;
+    Store.actualizarTicket(id, { estado: 'cerrada', atendidoPor: estado.operador.nombre });
+    cerrarModal();
+    abrirPerfiles();
+    toast('Ticket cerrado');
+  }
+
   /* ------------------------------- Arranque ----------------------------- */
 
   function init() {
     iniciarIntro();
+
+    // Los operadores de config.js pasan a ser cuentas gestionables.
+    sembrarUsuarios();
 
     // Descarta precios guardados por versiones anteriores: todo nace en 0.00.
     Store.migrarPrecios();

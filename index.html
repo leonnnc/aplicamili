@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
   <title>Lavandería Mili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261031i" />
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261102a" />
 </head>
 <body>
 
@@ -129,6 +129,9 @@
         <div class="topbar-right">
           <span class="badge badge-code" id="syncEstado" data-estado="local" title="Estado de la sincronización">Local</span>
           <span class="user-chip" id="usuarioChip"></span>
+          <button class="btn btn-ghost" id="btnPerfiles" type="button">
+            Perfiles<span class="badge badge-alerta" id="badgeTickets" hidden>0</span>
+          </button>
           <button class="btn btn-ghost" id="btnPrecios" type="button">Precios</button>
           <button class="btn btn-ghost" id="btnDatos" type="button">Datos</button>
           <button class="btn btn-ghost" id="btnSalir" type="button">Salir</button>
@@ -575,6 +578,41 @@
     </main>
   </div>
 
+  <!-- ======================= PANEL DE PERFILES ======================= -->
+  <div class="drawer" id="panelPerfiles" aria-hidden="true">
+    <div class="drawer-backdrop" data-cerrar-perfiles></div>
+    <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="tituloPerfiles">
+    <header class="drawer-head">
+      <div class="card-head-text">
+        <p class="eyebrow">Cuentas y ayuda</p>
+        <h2 id="tituloPerfiles">Perfiles</h2>
+      </div>
+      <button class="modal-close" id="cerrarPerfiles" type="button" aria-label="Cerrar perfiles">&times;</button>
+    </header>
+
+    <div class="drawer-body">
+      <section class="perfil-bloque" id="miPerfil"></section>
+
+      <section class="perfil-bloque" id="seccionUsuarios" hidden>
+        <div class="perfil-head">
+          <h3>Usuarios del sistema</h3>
+          <button class="btn btn-mini" id="btnNuevoUsuario" type="button">Agregar</button>
+        </div>
+        <div id="listaUsuarios"></div>
+      </section>
+
+      <section class="perfil-bloque" id="seccionSoporte">
+        <div class="perfil-head">
+          <h3>Soporte técnico</h3>
+          <button class="btn btn-mini" id="btnNuevoTicket" type="button">Nuevo ticket</button>
+        </div>
+        <p class="muted small" id="soporteInfo"></p>
+        <div id="listaTickets"></div>
+      </section>
+    </div>
+    </aside>
+  </div>
+
   <!-- ========================= PANEL DE PRECIOS ========================= -->
   <div class="drawer" id="panelPrecios" aria-hidden="true">
     <div class="drawer-backdrop" data-cerrar-panel></div>
@@ -625,16 +663,16 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261031i"></script>
-  <script src="assets/js/firebase-config.js?v=20261031i"></script>
-  <script src="assets/js/store.js?v=20261031i"></script>
+  <script src="assets/js/config.js?v=20261102a"></script>
+  <script src="assets/js/firebase-config.js?v=20261102a"></script>
+  <script src="assets/js/store.js?v=20261102a"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261031i"></script>
-  <script defer src="assets/js/app.js?v=20261031i"></script>
+  <script defer src="assets/js/sync.js?v=20261102a"></script>
+  <script defer src="assets/js/app.js?v=20261102a"></script>
 </body>
 </html>

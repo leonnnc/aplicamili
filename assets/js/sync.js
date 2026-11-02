@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    Lavandería Mili · Sincronización con Firebase (Firestore + Authentication)
    --------------------------------------------------------------------------
    Estrategia: la app sigue leyendo y escribiendo en localStorage (rápido y
@@ -82,7 +82,7 @@ const Sync = (() => {
 
   /* Último valor publicado/leído de los ajustes que no son el tarifario:
      código de autorización vigente, solicitudes de cambio y auditoría. */
-  const ultimoAjuste = { autorizacion: undefined, solicitudes: undefined, auditoria: undefined };
+  const ultimoAjuste = { autorizacion: undefined, solicitudes: undefined, auditoria: undefined, usuarios: undefined, tickets: undefined };
 
   function leerLocal(nombre) {
     if (nombre === "ordenes") return Store.getOrdenes();
@@ -166,13 +166,15 @@ const Sync = (() => {
     (locales || []).forEach((item) => {
       if (item && item.id) mapa.set(item.id, { ...(mapa.get(item.id) || {}), ...item });
     });
-    return [...mapa.values()].sort((a, b) => String(b.creada || b.fecha || "").localeCompare(String(a.creada || a.fecha || "")));
+    return [...mapa.values()].sort((a, b) => String(b.creada || b.fecha || b.creado || "").localeCompare(String(a.creada || a.fecha || "")));
   }
 
   function leerAjusteLocal(nombre) {
     if (nombre === "autorizacion") return Store.getAutorizacion();
     if (nombre === "solicitudes") return Store.getSolicitudes();
     if (nombre === "auditoria") return Store.getAuditoria();
+    if (nombre === "usuarios") return Store.getUsuarios();
+    if (nombre === "tickets") return Store.getTickets();
     return null;
   }
 
@@ -296,7 +298,9 @@ const Sync = (() => {
       escucharPrecios(),
       escucharAjuste("autorizacion"),
       escucharAjuste("solicitudes"),
-      escucharAjuste("auditoria")
+      escucharAjuste("auditoria"),
+      escucharAjuste("usuarios"),
+      escucharAjuste("tickets")
     ];
   }
 
@@ -440,6 +444,8 @@ const Sync = (() => {
         else if (clave === Store.KEYS.autorizacion) encolar(() => publicarAjuste("autorizacion", valor));
         else if (clave === Store.KEYS.solicitudes) encolar(() => publicarAjuste("solicitudes", valor));
         else if (clave === Store.KEYS.auditoria) encolar(() => publicarAjuste("auditoria", valor));
+        else if (clave === Store.KEYS.usuarios) encolar(() => publicarAjuste("usuarios", valor));
+        else if (clave === Store.KEYS.tickets) encolar(() => publicarAjuste("tickets", valor));
       });
 
       auth.onAuthStateChanged(async (user) => {
