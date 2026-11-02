@@ -3686,6 +3686,7 @@
       </div>
       <div class="perfil-acciones">
         <button class="btn btn-outline btn-mini" type="button" data-clave="${propia ? esc(propia.id) : ''}">Cambiar mi clave</button>
+        ${admin ? '<a class="btn btn-outline btn-mini" href="soporte/" target="_blank" rel="noopener">Panel de soporte</a>' : ''}
       </div>`;
 
     // --- usuarios (solo administración) ---
