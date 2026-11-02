@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    Lavandería Mili · Hoja de estilos
    1. Tokens y base
    2. Acceso de operadores
@@ -2059,140 +2059,159 @@ details.preview[open] summary::before { content: "▾ "; }
   .recepcion-medida { flex: 1 1 100%; min-width: 0; }
 }
 
-/* --------------- Intro de marca: 3 s, moderna y saltable --------------- */
+
+/* --------------- Intro de marca: agua real, 3 s y saltable -------------- */
+
 .intro {
   position: fixed;
   inset: 0;
   z-index: 9000;
-  display: grid;
-  place-items: center;
   overflow: hidden;
-  background-color: #041c19;
-  background-image: radial-gradient(120% 90% at 50% 0%, #0f766e 0%, #0a4f49 38%, #041c19 100%);
-  color: #eafaf7;
-  transition: opacity 0.45s ease, visibility 0.45s ease;
+  background: #ffffff;
+  color: #0b3350;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
 }
-.intro.is-out { opacity: 0; visibility: hidden; pointer-events: none; }
+.intro.is-out { opacity: 0; visibility: hidden; }
 
-.intro-grid {
+/* ---------- el agua: la foto subiendo ---------- */
+
+.intro-agua {
   position: absolute;
-  inset: -45% -20%;
-  background-image:
-    linear-gradient(to right, rgba(45, 212, 191, 0.16) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(45, 212, 191, 0.16) 1px, transparent 1px);
-  background-size: 46px 46px;
-  transform: perspective(560px) rotateX(58deg) translateY(8%);
-  -webkit-mask-image: radial-gradient(closest-side, #000 32%, transparent 76%);
-  mask-image: radial-gradient(closest-side, #000 32%, transparent 76%);
-  animation: introRejilla var(--intro, 3000ms) linear forwards;
+  inset: 0;
+  z-index: 2;
+  transform: translateY(104%);
+  animation: introLlena 1.2s 0.08s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform;
 }
-@keyframes introRejilla {
-  from { background-position: 0 0, 0 0; opacity: 0.2; }
-  to { background-position: 0 46px, 0 46px; opacity: 0.6; }
+@keyframes introLlena {
+  from { transform: translateY(104%); }
+  to { transform: translateY(0); }
 }
 
-.intro-halo {
+/* franja con la cresta y las burbujas de la foto */
+.intro-foto {
   position: absolute;
-  width: min(74vw, 520px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(45, 212, 191, 0.45), rgba(45, 212, 191, 0) 62%);
-  filter: blur(4px);
-  animation: introHalo var(--intro, 3000ms) ease-out forwards;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 92vh;
+  background-image: url("../img/agua.webp");
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+  background-position: center top;
+  animation: introDeriva 14s ease-in-out infinite alternate;
 }
-@keyframes introHalo {
-  0% { transform: scale(0.55); opacity: 0.15; }
-  55% { opacity: 0.95; }
-  100% { transform: scale(1.18); opacity: 0.5; }
+@keyframes introDeriva {
+  from { background-position: center top; }
+  to { background-position: 6% top; }
 }
+
+/* cuerpo del agua, con el mismo azul que la base de la foto */
+.intro-cuerpo {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  top: 32vh;
+  bottom: 0;
+  background: linear-gradient(180deg, #bedeee 0%, #b3d9ec 55%, #9cc9e0 100%);
+}
+
+/* funde el borde inferior de la foto con el cuerpo del agua */
+.intro-empalme {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  top: 32vh;
+  height: 60vh;
+  background: linear-gradient(180deg, rgba(190, 222, 238, 0) 0%, rgba(190, 222, 238, 0.35) 40%, rgba(190, 222, 238, 0.85) 78%, #bedeee 100%);
+}
+
+/* ---------- contenido ---------- */
 
 .intro-centro {
-  position: relative;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
   display: grid;
+  place-content: center;
   justify-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 0 24px;
   text-align: center;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: introAparece 0.8s 1.25s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
-
-.intro-mark {
-  display: grid;
-  place-items: center;
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
-  color: #ecfdf9;
-  border: 1px solid rgba(94, 234, 212, 0.55);
-  background: rgba(13, 148, 136, 0.28);
-  animation: introMarca var(--intro, 3000ms) ease-out forwards;
-}
-.intro-mark svg { width: 30px; height: 30px; }
-@keyframes introMarca {
-  0% { transform: scale(0.72) rotate(-8deg); opacity: 0; box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.55); }
-  35% { transform: scale(1) rotate(0deg); opacity: 1; box-shadow: 0 0 0 14px rgba(45, 212, 191, 0.12); }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; box-shadow: 0 0 0 26px rgba(45, 212, 191, 0), inset 0 0 26px rgba(45, 212, 191, 0.35); }
-}
-
-.intro-titulo {
-  margin: 6px 0 0;
-  font-size: clamp(26px, 6vw, 46px);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  animation: introTexto 0.8s 0.15s ease-out both;
-}
-.intro-titulo em {
-  font-style: normal;
-  background: linear-gradient(100deg, #5eead4, #99f6e4 42%, #fef3c7);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.intro-sub {
-  margin: 0;
-  font-size: clamp(10px, 2.4vw, 13px);
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: rgba(204, 251, 241, 0.75);
-  animation: introTexto 0.8s 0.35s ease-out both;
-}
-@keyframes introTexto {
-  from { opacity: 0; transform: translateY(10px); }
+@keyframes introAparece {
   to { opacity: 1; transform: none; }
 }
 
-.intro-barra {
-  margin-top: 18px;
-  width: clamp(140px, 42vw, 240px);
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(204, 251, 241, 0.18);
-  overflow: hidden;
+.intro-marca {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  color: #ffffff;
+  background: linear-gradient(160deg, #1c6ba8, #0b3350);
+  box-shadow: 0 14px 34px rgba(11, 51, 80, 0.22);
 }
-.intro-barra span {
-  display: block;
-  height: 100%;
-  width: 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #2dd4bf, #99f6e4);
-  animation: introBarra var(--intro, 3000ms) linear forwards;
+.intro-marca svg { width: 34px; height: 34px; }
+
+.intro-titulo {
+  margin: 4px 0 0;
+  font-size: clamp(28px, 6.4vw, 50px);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.04;
+  color: #0b3350;
 }
-@keyframes introBarra {
-  from { width: 0; }
-  to { width: 100%; }
+.intro-titulo em { font-style: normal; color: #1c6ba8; }
+
+.intro-sub {
+  margin: 0;
+  font-size: clamp(10px, 2.3vw, 12px);
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: #3a6c8c;
+}
+
+/* ---------- destello y pie ---------- */
+
+.intro-destello {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.75), transparent 55%);
+  opacity: 0;
+  animation: introDestello 0.8s 1.25s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes introDestello {
+  0% { opacity: 0; transform: scale(0.9); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.2); }
 }
 
 .intro-pie {
   position: absolute;
-  bottom: max(18px, env(safe-area-inset-bottom));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
   margin: 0;
-  font-size: 10.5px;
-  letter-spacing: 0.24em;
+  z-index: 5;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
-  color: rgba(204, 251, 241, 0.45);
+  color: rgba(11, 51, 80, 0.45);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .intro-grid, .intro-halo, .intro-mark, .intro-titulo, .intro-sub { animation: none; }
-  .intro-titulo, .intro-sub { opacity: 1; }
+  .intro-agua, .intro-foto, .intro-centro, .intro-destello { animation: none; }
+  .intro-agua { transform: none; }
+  .intro-centro { opacity: 1; transform: none; }
 }
