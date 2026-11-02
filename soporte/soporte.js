@@ -370,6 +370,9 @@
   function arrancar() {
     conectar();
 
+    const version = document.querySelector('#versionSoporte');
+    if (version) version.textContent = 'v' + ((typeof CONFIG !== 'undefined' && CONFIG.version) || '0.01');
+
     if (!iniciarFirebase()) {
       $('#errorAcceso').textContent = 'No se pudo cargar Firebase. Puedes ver los tickets de este equipo.';
       return;

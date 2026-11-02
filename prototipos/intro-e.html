@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Intro E · Agua real — Lavandería Mili</title>
+<style>
+  :root {
+    --navy-900: #040d19;
+    --blue-300: #7fb4ff;
+    --ice: #dce9ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--navy-900);
+    color: var(--ice);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+
+  .intro {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: radial-gradient(90% 65% at 50% 0%, #123a6b 0%, #08182e 55%, #040d19 100%);
+    transition: opacity .45s ease, visibility .45s ease;
+  }
+  .intro.is-out { opacity: 0; visibility: hidden; }
+
+  /* ---------------- contenido ---------------- */
+  .centro {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 12px;
+    text-align: center;
+    padding: 0 24px;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: aparece .7s .5s cubic-bezier(.2, .8, .2, 1) forwards;
+  }
+  .intro.llena .centro { z-index: 8; }
+  @keyframes aparece {
+    to { opacity: 1; transform: none; }
+  }
+
+  .marca {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 22px;
+    color: #f2f8ff;
+    border: 1px solid rgba(168, 204, 255, .55);
+    background: rgba(20, 60, 120, .32);
+    box-shadow: 0 12px 40px rgba(2, 10, 24, .5), inset 0 0 26px rgba(120, 180, 255, .22);
+    backdrop-filter: blur(6px);
+  }
+  .marca svg { width: 34px; height: 34px; }
+  .titulo {
+    margin: 4px 0 0;
+    font-size: clamp(28px, 6.4vw, 50px);
+    font-weight: 800;
+    letter-spacing: -.025em;
+    line-height: 1.04;
+    color: #f6faff;
+    text-shadow: 0 2px 26px rgba(3, 14, 30, .55);
+  }
+  .titulo em { font-style: normal; color: #b9d7ff; }
+  .sub {
+    margin: 0;
+    font-size: clamp(10px, 2.3vw, 12px);
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    color: rgba(214, 236, 255, .78);
+    text-shadow: 0 1px 16px rgba(3, 14, 30, .65);
+  }
+
+  /* ---------------- el agua: una sola silueta, sin costuras ---------------- */
+  .agua {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    transform: translateY(103%);
+    animation: llena 1.15s .1s cubic-bezier(.42, 0, .18, 1) forwards;
+    will-change: transform;
+  }
+  .agua svg { display: block; width: 100%; height: 100%; }
+  @keyframes llena {
+    from { transform: translateY(103%); }
+    to   { transform: translateY(0); }
+  }
+
+  /* ---------------- burbujas: viven dentro del agua ---------------- */
+  .burbujas { position: absolute; inset: 0; pointer-events: none; }
+  .b {
+    position: absolute;
+    top: var(--y, 50%);
+    left: var(--x, 50%);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255, 255, 255, .98), rgba(255, 255, 255, .38) 30%, rgba(150, 205, 240, .14) 58%, transparent 70%);
+    box-shadow: inset -1px -1px 4px rgba(255, 255, 255, .6), 0 0 6px rgba(220, 240, 255, .25);
+    opacity: .5;
+    animation: flota var(--dur, 3s) var(--delay, 0s) ease-in-out infinite alternate;
+  }
+  @keyframes flota {
+    from { transform: translateY(7px) scale(.92); opacity: .3; }
+    to   { transform: translateY(-11px) scale(1.08); opacity: .92; }
+  }
+
+  /* ---------------- destello ---------------- */
+  .destello {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    background: radial-gradient(circle at 50% 40%, rgba(214, 238, 255, .28), transparent 60%);
+    opacity: 0;
+    animation: destello .7s 1.2s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes destello {
+    0%   { opacity: 0; transform: scale(.92); }
+    38%  { opacity: 1; }
+    100% { opacity: 0; transform: scale(1.18); }
+  }
+
+  .pie {
+    position: absolute;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: 0; right: 0;
+    margin: 0;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: .26em;
+    text-transform: uppercase;
+    color: rgba(200, 228, 255, .6);
+    z-index: 9;
+  }
+
+  /* ---------------- controles ---------------- */
+  .barra {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 9px 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(127, 180, 255, .3);
+    background: rgba(4, 13, 25, .86);
+    backdrop-filter: blur(8px);
+    font-size: 11.5px;
+    color: rgba(220, 233, 255, .85);
+    z-index: 20;
+  }
+  .barra b { font-weight: 700; color: #fff; letter-spacing: .06em; }
+  .barra button {
+    font: inherit; font-weight: 600; color: #061024;
+    background: var(--blue-300); border: 0; border-radius: 999px;
+    padding: 6px 12px; cursor: pointer;
+  }
+  .barra button:hover { background: #c3ddff; }
+  .tiempo { font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agua, .b, .destello, .centro { animation: none; }
+    .agua { transform: none; }
+    .centro { opacity: 1; transform: none; }
+    .b { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro" id="intro">
+  <div class="centro">
+    <span class="marca">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <rect x="3.5" y="2.5" width="17" height="19" rx="3" />
+        <circle cx="12" cy="14" r="4.2" />
+        <path d="M7 6.2h.01M10 6.2h.01" />
+      </svg>
+    </span>
+    <h1 class="titulo">Lavandería <em>Mili</em></h1>
+    <p class="sub">Control de servicios</p>
+  </div>
+
+  <div class="agua">
+    <svg viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="mar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#dff2ff" stop-opacity="0.95" />
+          <stop offset="7%" stop-color="#9fd0ef" stop-opacity="0.9" />
+          <stop offset="26%" stop-color="#3f7fbe" stop-opacity="0.9" />
+          <stop offset="62%" stop-color="#123a6b" stop-opacity="0.95" />
+          <stop offset="100%" stop-color="#061428" stop-opacity="1" />
+        </linearGradient>
+        <linearGradient id="brillo" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32" />
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+        </linearGradient>
+        <filter id="difumina" x="-6%" y="-60%" width="112%" height="220%">
+          <feGaussianBlur stdDeviation="5" />
+        </filter>
+        <filter id="filo" x="-6%" y="-60%" width="112%" height="220%">
+          <feGaussianBlur stdDeviation="1.1" />
+        </filter>
+      </defs>
+
+      <!-- halo suave detrás de la cresta -->
+      <path d="M0,84 C42,70 88,60 132,68 C176,76 200,100 244,102 C286,104 306,74 350,66
+               C392,58 416,84 458,90 C500,96 524,66 570,60 C614,54 638,78 680,84
+               C722,90 746,62 790,56 C834,50 858,74 900,80 C942,86 966,58 1010,52
+               C1054,46 1078,72 1120,78 C1162,84 1186,58 1230,52 C1274,46 1298,70 1340,76
+               C1376,81 1410,72 1440,66 L1440,190 L0,190 Z"
+            fill="#9fd0ef" fill-opacity="0.22" filter="url(#difumina)" />
+
+      <!-- cuerpo del agua -->
+      <path d="M0,84 C42,70 88,60 132,68 C176,76 200,100 244,102 C286,104 306,74 350,66
+               C392,58 416,84 458,90 C500,96 524,66 570,60 C614,54 638,78 680,84
+               C722,90 746,62 790,56 C834,50 858,74 900,80 C942,86 966,58 1010,52
+               C1054,46 1078,72 1120,78 C1162,84 1186,58 1230,52 C1274,46 1298,70 1340,76
+               C1376,81 1410,72 1440,66 L1440,900 L0,900 Z"
+            fill="url(#mar)" />
+
+      <!-- reflejo luminoso justo bajo la superficie -->
+      <path d="M0,84 C42,70 88,60 132,68 C176,76 200,100 244,102 C286,104 306,74 350,66
+               C392,58 416,84 458,90 C500,96 524,66 570,60 C614,54 638,78 680,84
+               C722,90 746,62 790,56 C834,50 858,74 900,80 C942,86 966,58 1010,52
+               C1054,46 1078,72 1120,78 C1162,84 1186,58 1230,52 C1274,46 1298,70 1340,76
+               C1376,81 1410,72 1440,66 L1440,300 L0,300 Z"
+            fill="url(#brillo)" />
+
+      <!-- el filo de vidrio -->
+      <path d="M0,84 C42,70 88,60 132,68 C176,76 200,100 244,102 C286,104 306,74 350,66
+               C392,58 416,84 458,90 C500,96 524,66 570,60 C614,54 638,78 680,84
+               C722,90 746,62 790,56 C834,50 858,74 900,80 C942,86 966,58 1010,52
+               C1054,46 1078,72 1120,78 C1162,84 1186,58 1230,52 C1274,46 1298,70 1340,76
+               C1376,81 1410,72 1440,66"
+            fill="none" stroke="#eaf7ff" stroke-opacity="0.9" stroke-width="3"
+            stroke-linecap="round" filter="url(#filo)" />
+      <path d="M0,84 C42,70 88,60 132,68 C176,76 200,100 244,102 C286,104 306,74 350,66
+               C392,58 416,84 458,90 C500,96 524,66 570,60 C614,54 638,78 680,84
+               C722,90 746,62 790,56 C834,50 858,74 900,80 C942,86 966,58 1010,52
+               C1054,46 1078,72 1120,78 C1162,84 1186,58 1230,52 C1274,46 1298,70 1340,76
+               C1376,81 1410,72 1440,66"
+            fill="none" stroke="#ffffff" stroke-opacity="0.75" stroke-width="1.2"
+            stroke-linecap="round" />
+    </svg>
+    <div class="burbujas" id="burbujas"></div>
+  </div>
+
+  <div class="destello"></div>
+  <p class="pie">Lavandería &amp; tintorería</p>
+</div>
+
+<div class="barra">
+  <b>E · Agua real</b>
+  <span class="tiempo" id="tiempo">0.0 s</span>
+  <button type="button" id="repetir">Repetir</button>
+</div>
+
+<script>
+  (function () {
+    const intro = document.getElementById('intro');
+    const tiempo = document.getElementById('tiempo');
+    const caja = document.getElementById('burbujas');
+    const DURACION = 3000;
+
+    /* Burbujas dentro del agua: más juntas cerca de la superficie, como en
+       una foto de agua real, y unas pocas grandes y lentas. */
+    const total = window.innerWidth < 700 ? 26 : 46;
+    for (let i = 0; i < total; i += 1) {
+      const b = document.createElement('span');
+      const grande = Math.random() > 0.84;
+      const tam = grande ? 10 + Math.random() * 10 : 2.5 + Math.random() * 6;
+      const cerca = Math.random() < 0.62;
+      const y = cerca ? 9 + Math.random() * 18 : 28 + Math.random() * 55;
+      b.className = 'b';
+      b.style.width = tam.toFixed(1) + 'px';
+      b.style.height = tam.toFixed(1) + 'px';
+      b.style.setProperty('--x', (Math.random() * 100).toFixed(2) + '%');
+      b.style.setProperty('--y', y.toFixed(1) + '%');
+      b.style.setProperty('--dur', (2.2 + Math.random() * 3).toFixed(2) + 's');
+      b.style.setProperty('--delay', (Math.random() * 2).toFixed(2) + 's');
+      caja.appendChild(b);
+    }
+
+    let inicio = 0, temporizador = null, reloj = null;
+    function salir() {
+      clearTimeout(temporizador);
+      clearInterval(reloj);
+      intro.classList.add('is-out');
+    }
+    function arrancar() {
+      inicio = performance.now();
+      reloj = setInterval(() => {
+        const t = Math.min(DURACION, performance.now() - inicio) / 1000;
+        tiempo.textContent = t.toFixed(1) + ' s';
+      }, 100);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setTimeout(function () { intro.classList.add('llena'); }, 1200);
+        temporizador = setTimeout(salir, DURACION);
+      } else {
+        intro.classList.add('llena');
+      }
+    }
+
+    document.getElementById('repetir').addEventListener('click', (e) => { e.stopPropagation(); location.reload(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') salir(); });
+    window.addEventListener('load', arrancar);
+  })();
+</script>
+</body>
+</html>

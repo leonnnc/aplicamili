@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Intro D · Olas — Lavandería Mili</title>
+<style>
+  :root {
+    --navy-900: #050f1e;
+    --navy-800: #071528;
+    --blue-500: #2563c9;
+    --blue-400: #4c8dff;
+    --blue-300: #7fb4ff;
+    --ice-100: #dce9ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--navy-900);
+    color: var(--ice-100);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+
+  .intro {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: radial-gradient(120% 80% at 50% 100%, #0d2f5c 0%, #0a1d38 45%, #050f1e 100%);
+    transition: opacity .45s ease, visibility .45s ease;
+  }
+  .intro.is-out { opacity: 0; visibility: hidden; }
+  /* Al terminar de llenar, el logo sube por encima del agua: emerge. */
+  .intro.llena .centro { z-index: 6; }
+
+  /* ---------- contenido ---------- */
+  .centro {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 12px;
+    text-align: center;
+    padding: 0 24px;
+  }
+  .marca {
+    display: grid;
+    place-items: center;
+    width: 70px;
+    height: 70px;
+    border-radius: 20px;
+    color: #eaf2ff;
+    border: 1px solid rgba(127, 180, 255, .55);
+    background: rgba(37, 99, 201, .3);
+    box-shadow: 0 0 46px rgba(76, 141, 255, .4), inset 0 0 26px rgba(76, 141, 255, .2);
+  }
+  .marca svg { width: 33px; height: 33px; }
+  .titulo {
+    margin: 4px 0 0;
+    font-size: clamp(28px, 6.4vw, 50px);
+    font-weight: 800;
+    letter-spacing: -.025em;
+    line-height: 1.04;
+    color: #eef4ff;
+  }
+  .titulo em { font-style: normal; color: var(--blue-300); }
+  .sub {
+    margin: 0;
+    font-size: clamp(10px, 2.3vw, 12px);
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    color: rgba(180, 205, 255, .62);
+  }
+
+  /* ---------- velo: tapa lo que aún no se llenó ---------- */
+  .velo {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: rgba(5, 15, 30, .93);
+    transform: translateY(0);
+    animation: retira 1s .1s cubic-bezier(.45, 0, .22, 1) forwards;
+    pointer-events: none;
+  }
+  @keyframes retira {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-100%); }
+  }
+
+  /* ---------- el agua: sube con olas en la superficie ---------- */
+  .agua {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    transform: translateY(100%);
+    animation: llena 1s .1s cubic-bezier(.45, 0, .22, 1) forwards;
+    background:
+      radial-gradient(120% 70% at 50% 100%, rgba(76, 141, 255, .42), rgba(76, 141, 255, 0) 62%),
+      linear-gradient(180deg, rgba(76, 141, 255, .30) 0%, rgba(37, 99, 201, .26) 34%, rgba(10, 32, 66, .62) 100%);
+  }
+  @keyframes llena {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .agua::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 130px;
+    background: linear-gradient(180deg, rgba(127, 180, 255, .32), rgba(127, 180, 255, 0));
+    pointer-events: none;
+  }
+
+  /* dos capas de olas, a distinta velocidad, para que no parezca una línea */
+  /* La ola termina justo donde empieza el cuerpo del agua: sin costura recta. */
+  .cresta {
+    position: absolute;
+    left: -50%;
+    right: -50%;
+    top: -41px;
+    height: 43px;
+    background-repeat: repeat-x;
+    background-size: 260px 43px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 42' preserveAspectRatio='none'%3E%3Cpath d='M0,18 C26,4 50,4 78,18 C106,32 130,32 158,18 C186,4 210,4 238,18 C246,22 253,24 260,25 L260,42 L0,42 Z' fill='%234c8dff' fill-opacity='0.30'/%3E%3C/svg%3E");
+    animation: ola 11s linear infinite;
+  }
+  /* Brillo que sigue la cresta, a otra velocidad: es lo que la hace parecer agua. */
+  .cresta-2 {
+    top: -34px;
+    height: 34px;
+    background-size: 190px 34px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 190 34' preserveAspectRatio='none'%3E%3Cpath d='M0,14 C22,3 40,3 66,14 C92,25 110,25 136,14 C158,4 176,4 190,10' fill='none' stroke='%23a8ccff' stroke-opacity='0.55' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    animation-duration: 6.5s;
+    animation-direction: reverse;
+  }
+  @keyframes ola {
+    from { background-position-x: 0; }
+    to   { background-position-x: 260px; }
+  }
+
+  /* ---------- burbujas ---------- */
+  .burbuja {
+    position: absolute;
+    bottom: -16px;
+    z-index: 4;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, rgba(255, 255, 255, .9), rgba(127, 180, 255, .2) 58%, transparent 70%);
+    opacity: 0;
+    animation: burbuja 1s .15s ease-out forwards;
+  }
+  @keyframes burbuja {
+    0%   { transform: translateY(0) scale(.6); opacity: 0; }
+    18%  { opacity: .8; }
+    100% { transform: translateY(-58vh) scale(1.2); opacity: 0; }
+  }
+
+  /* ---------- destello al completar ---------- */
+  .destello {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: radial-gradient(circle at 50% 50%, rgba(180, 215, 255, .26), transparent 58%);
+    opacity: 0;
+    animation: destello .6s 1.05s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes destello {
+    0%   { opacity: 0; transform: scale(.85); }
+    35%  { opacity: 1; }
+    100% { opacity: 0; transform: scale(1.25); }
+  }
+
+  .pie {
+    position: absolute;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: 0; right: 0;
+    margin: 0;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: .26em;
+    text-transform: uppercase;
+    color: rgba(180, 205, 250, .5);
+    z-index: 6;
+  }
+
+  /* ---------- controles del prototipo ---------- */
+  .barra {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 9px 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(127, 180, 255, .28);
+    background: rgba(5, 15, 30, .86);
+    backdrop-filter: blur(8px);
+    font-size: 11.5px;
+    color: rgba(220, 233, 255, .8);
+    z-index: 20;
+  }
+  .barra b { font-weight: 700; color: #fff; letter-spacing: .06em; }
+  .barra button {
+    font: inherit; font-weight: 600; color: #061024;
+    background: var(--blue-300); border: 0; border-radius: 999px;
+    padding: 6px 12px; cursor: pointer;
+  }
+  .barra button:hover { background: #a8ccff; }
+  .tiempo { font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agua, .velo, .burbuja, .destello { animation: none; }
+    .agua { transform: none; }
+    .velo { display: none; }
+    .cresta { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro" id="intro">
+  <div class="centro">
+    <span class="marca">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <rect x="3.5" y="2.5" width="17" height="19" rx="3" />
+        <circle cx="12" cy="14" r="4.2" />
+        <path d="M7 6.2h.01M10 6.2h.01" />
+      </svg>
+    </span>
+    <h1 class="titulo">Lavandería <em>Mili</em></h1>
+    <p class="sub">Control de servicios</p>
+  </div>
+
+  <div class="velo"></div>
+
+  <div class="agua">
+    <span class="cresta cresta-1"></span>
+    <span class="cresta cresta-2"></span>
+  </div>
+
+  <div class="burbuja" style="left:15%; width:13px; height:13px"></div>
+  <div class="burbuja" style="left:26%; width:8px; height:8px; animation-delay:.22s"></div>
+  <div class="burbuja" style="left:61%; width:11px; height:11px; animation-delay:.14s"></div>
+  <div class="burbuja" style="left:77%; width:16px; height:16px; animation-delay:.28s"></div>
+  <div class="burbuja" style="left:44%; width:6px; height:6px; animation-delay:.36s"></div>
+  <div class="burbuja" style="left:87%; width:9px; height:9px; animation-delay:.44s"></div>
+
+  <div class="destello"></div>
+  <p class="pie">Lavandería &amp; tintorería</p>
+</div>
+
+<div class="barra">
+  <b>D · Olas</b>
+  <span class="tiempo" id="tiempo">0.0 s</span>
+  <button type="button" id="repetir">Repetir</button>
+</div>
+
+<script>
+  (function () {
+    const intro = document.getElementById('intro');
+    const tiempo = document.getElementById('tiempo');
+    const DURACION = 3000;
+    let inicio = 0, temporizador = null, reloj = null;
+
+    function salir() {
+      clearTimeout(temporizador);
+      clearInterval(reloj);
+      intro.classList.add('is-out');
+    }
+
+    function arrancar() {
+      inicio = performance.now();
+      reloj = setInterval(() => {
+        const t = Math.min(DURACION, performance.now() - inicio) / 1000;
+        tiempo.textContent = t.toFixed(1) + ' s';
+      }, 100);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setTimeout(function () { intro.classList.add('llena'); }, 1020);
+        temporizador = setTimeout(salir, DURACION);
+      } else {
+        intro.classList.add('llena');
+      }
+    }
+
+    document.getElementById('repetir').addEventListener('click', (e) => { e.stopPropagation(); location.reload(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') salir(); });
+    window.addEventListener('load', arrancar);
+  })();
+</script>
+</body>
+</html>

@@ -3978,6 +3978,10 @@
     // Los operadores de config.js pasan a ser cuentas gestionables.
     sembrarUsuarios();
 
+    // Versión visible, tomada de config.js para que no se desincronice.
+    const etiquetaVersion = document.getElementById('versionApp');
+    if (etiquetaVersion && CONFIG.version) etiquetaVersion.textContent = 'v' + CONFIG.version;
+
     // Descarta precios guardados por versiones anteriores: todo nace en 0.00.
     Store.migrarPrecios();
 

@@ -2386,3 +2386,16 @@ details.preview[open] summary::before { content: "▾ "; }
   white-space: pre-wrap;
 }
 
+
+/* Versión visible junto al aviso de uso interno. */
+.login-version {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #f1f5f4;
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}

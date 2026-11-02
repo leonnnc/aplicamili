@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Intro C · Ticket — Lavandería Mili</title>
+<style>
+  :root {
+    --navy-900: #050f1e;
+    --navy-800: #071528;
+    --navy-700: #0b2544;
+    --blue-600: #1b4e8f;
+    --blue-500: #2563c9;
+    --blue-400: #4c8dff;
+    --blue-300: #7fb4ff;
+    --ice-100: #dce9ff;
+    --mono: "Cascadia Mono", "SF Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #050f1e;
+    color: var(--ice-100);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+
+  .intro {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background:
+      linear-gradient(rgba(76, 141, 255, .06) 1px, transparent 1px) 0 0 / 40px 40px,
+      linear-gradient(90deg, rgba(76, 141, 255, .06) 1px, transparent 1px) 0 0 / 40px 40px,
+      radial-gradient(circle at 50% 42%, #0d2547 0%, #071528 55%, #050f1e 100%);
+    background-color: #050f1e;
+    transition: opacity .5s ease, visibility .5s ease;
+  }
+  .intro.is-out { opacity: 0; visibility: hidden; }
+
+  .escena {
+    position: relative;
+    display: grid;
+    grid-template-areas: "arte" "titulo" "sub";
+    justify-items: center;
+    align-items: center;
+    gap: 14px;
+    padding: 0 20px;
+  }
+  .ticket, .marca { grid-area: arte; }
+  .titulo { grid-area: titulo; }
+  .sub { grid-area: sub; }
+
+  /* ---- ticket ---- */
+  .ticket {
+    position: relative;
+    width: min(86vw, 330px);
+    padding: 16px 18px 14px;
+    border-radius: 4px;
+    background: #eef4ff;
+    color: #0a1a33;
+    box-shadow: 0 22px 60px rgba(2, 8, 20, .55), 0 0 0 1px rgba(127, 180, 255, .25);
+    animation: entra .7s .1s cubic-bezier(.2, .9, .2, 1) both, sale .5s 1.12s cubic-bezier(.4, 0, .6, 1) forwards;
+  }
+  /* borde troquelado */
+  .ticket::before, .ticket::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 12px; height: 12px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: #050f1e;
+    box-shadow: inset 0 0 0 1px rgba(127, 180, 255, .25);
+  }
+  .ticket::before { left: -6px; }
+  .ticket::after { right: -6px; }
+
+  @keyframes entra {
+    from { opacity: 0; transform: translateY(26px) rotate(-1.5deg); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes sale {
+    to { opacity: 0; transform: translateY(-18px) scale(.92); }
+  }
+
+  .ticket-cab {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #45608a;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed rgba(10, 26, 51, .25);
+    opacity: 0;
+    animation: aparece .35s .32s both;
+  }
+  .ticket-cab strong { color: #0a1a33; font-size: 12px; letter-spacing: .06em; }
+
+  .linea {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 5px 0;
+    color: #1c3459;
+    opacity: 0;
+    animation: aparece .35s both;
+  }
+  .linea:nth-child(2) { animation-delay: .44s; }
+  .linea:nth-child(3) { animation-delay: .56s; }
+  .linea:nth-child(4) { animation-delay: .68s; }
+  .linea b { color: #0a1a33; }
+
+  .ticket-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(10, 26, 51, .25);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0;
+    animation: aparece .35s .8s both;
+  }
+  .ticket-total span:last-child { color: #1b4e8f; }
+
+  .sello {
+    position: absolute;
+    right: -30px;
+    bottom: -20px;
+    padding: 4px 9px;
+    border: 2px solid #4c8dff;
+    border-radius: 3px;
+    color: #9cc4ff;
+    background: rgba(5, 15, 30, .55);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    transform: rotate(-8deg) scale(1.8);
+    opacity: 0;
+    animation: sello .4s .82s cubic-bezier(.2, 1.4, .4, 1) forwards;
+  }
+  @keyframes sello {
+    0% { opacity: 0; transform: rotate(-8deg) scale(1.8); }
+    60% { opacity: 1; transform: rotate(-8deg) scale(.92); }
+    100% { opacity: 1; transform: rotate(-8deg) scale(1); }
+  }
+
+  @keyframes aparece { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* ---- logo final ---- */
+  .marca {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 68px; height: 68px;
+    border-radius: 20px;
+    color: #eaf2ff;
+    border: 1px solid rgba(127, 180, 255, .5);
+    background: rgba(37, 99, 201, .22);
+    box-shadow: 0 0 42px rgba(76, 141, 255, .35), inset 0 0 24px rgba(76, 141, 255, .18);
+    opacity: 0;
+    animation: marca .5s 1.3s cubic-bezier(.2, .8, .2, 1) forwards;
+  }
+  .marca svg { width: 32px; height: 32px; }
+  @keyframes marca {
+    from { opacity: 0; transform: scale(.6); filter: blur(6px); }
+    to   { opacity: 1; transform: none; filter: blur(0); }
+  }
+
+  .titulo {
+    margin: 0;
+    font-size: clamp(26px, 6vw, 46px);
+    font-weight: 800;
+    letter-spacing: -.025em;
+    color: #eef4ff;
+    opacity: 0;
+    animation: sube .5s 1.45s cubic-bezier(.2, .8, .2, 1) forwards;
+  }
+  .titulo em { font-style: normal; color: var(--blue-300); }
+  .sub {
+    margin: 0;
+    font-size: clamp(10px, 2.2vw, 11.5px);
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    color: rgba(180, 205, 255, .6);
+    opacity: 0;
+    animation: sube .5s 1.58s cubic-bezier(.2, .8, .2, 1) forwards;
+  }
+  @keyframes sube { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .pie {
+    position: absolute;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    margin: 0;
+    font-size: 10px;
+    letter-spacing: .26em;
+    text-transform: uppercase;
+    color: rgba(160, 190, 240, .4);
+  }
+
+  .barra {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 9px 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(127, 180, 255, .28);
+    background: rgba(5, 15, 30, .82);
+    backdrop-filter: blur(8px);
+    font-size: 11.5px;
+    color: rgba(220, 233, 255, .8);
+    z-index: 10;
+  }
+  .barra b { font-weight: 700; color: #fff; letter-spacing: .06em; }
+  .barra button {
+    font: inherit; font-weight: 600; color: #061024;
+    background: var(--blue-300); border: 0; border-radius: 999px;
+    padding: 6px 12px; cursor: pointer;
+  }
+  .barra button:hover { background: #a8ccff; }
+  .tiempo { font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ticket, .ticket-cab, .linea, .ticket-total, .sello, .marca, .titulo, .sub { animation: none; opacity: 1; }
+    .ticket { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro" id="intro">
+  <div class="escena">
+    <div class="ticket">
+      <div class="ticket-cab">
+        <strong>ORDEN DE SERVICIO</strong>
+        <span>OT-2026-0142</span>
+      </div>
+      <div class="linea"><span>Cliente</span><b>Ana Torres</b></div>
+      <div class="linea"><span>Terno completo</span><b>S/ 28.00</b></div>
+      <div class="linea"><span>Lavado 3.66 kg</span><b>S/ 23.79</b></div>
+      <div class="ticket-total"><span>TOTAL</span><span>S/ 51.79</span></div>
+      <div class="sello">LISTO</div>
+    </div>
+
+    <span class="marca">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <rect x="3.5" y="2.5" width="17" height="19" rx="3" />
+        <circle cx="12" cy="14" r="4.2" />
+        <path d="M7 6.2h.01M10 6.2h.01" />
+      </svg>
+    </span>
+    <h1 class="titulo">Lavandería <em>Mili</em></h1>
+    <p class="sub">Control de servicios</p>
+  </div>
+
+  <p class="pie">Lavandería &amp; tintorería</p>
+</div>
+
+<div class="barra">
+  <b>C · Ticket</b>
+  <span class="tiempo" id="tiempo">0.0 s</span>
+  <button type="button" id="repetir">Repetir</button>
+</div>
+
+<script>
+  (function () {
+    const intro = document.getElementById('intro');
+    const tiempo = document.getElementById('tiempo');
+    const DURACION = 3000;
+    let inicio = 0;
+    let temporizador = null;
+    let reloj = null;
+
+    function salir() {
+      clearTimeout(temporizador);
+      clearInterval(reloj);
+      intro.classList.add('is-out');
+    }
+
+    function arrancar() {
+      inicio = performance.now();
+      reloj = setInterval(() => {
+        const t = Math.min(DURACION, performance.now() - inicio) / 1000;
+        tiempo.textContent = t.toFixed(1) + ' s';
+      }, 100);
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        temporizador = setTimeout(salir, DURACION);
+      }
+    }
+
+    document.getElementById('repetir').addEventListener('click', (e) => { e.stopPropagation(); location.reload(); });
+    intro.addEventListener('click', salir);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') salir(); });
+    window.addEventListener('load', arrancar);
+  })();
+</script>
+</body>
+</html>
