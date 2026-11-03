@@ -112,7 +112,7 @@ window.Comprobante = (function () {
   }
 
   function altoDe(orden) {
-    return 200 + altoTarjeta(orden) + 24 + 214 + 24 + 320 + 56;
+    return 200 + altoTarjeta(orden) + 24 + 214 + 24 + 150;
   }
 
   function dibujar(orden, tipo) {
@@ -237,13 +237,9 @@ window.Comprobante = (function () {
       : CONFIG.negocio.direccion;
     escribir(ctx, recortar(ctx, lugar, 800), M + 48, ry, `400 20px ${FUENTE}`, C.suave);
 
-    // Pie: solo el código, sin QR
+    // Pie: datos del negocio (el código ya va arriba, no se repite)
     const pieY = recojoY + 214 + 24;
-    escribir(ctx, 'CONSERVA ESTE CÓDIGO', M, pieY + 46, `700 16px ${FUENTE}`, C.suave);
-    escribir(ctx, orden.codigo, M, pieY + 108, `700 46px ${FUENTE}`, C.tinta);
-    escribir(ctx, 'Preséntalo al recoger tus prendas.', M, pieY + 144, `400 21px ${FUENTE}`, C.suave);
-
-    const pieTexto = pieY + 196;
+    const pieTexto = pieY + 8;
     ctx.strokeStyle = C.linea;
     ctx.beginPath();
     ctx.moveTo(M, pieTexto);
