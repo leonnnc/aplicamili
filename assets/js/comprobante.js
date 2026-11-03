@@ -1,7 +1,7 @@
 ﻿/*
  * Comprobante en imagen (PNG) para enviar al cliente por WhatsApp.
  * Dibuja la ficha del servicio en un canvas: no depende de librerías de
- * maquetado y funciona sin conexión salvo el QR, que se carga aparte.
+ * maquetado y funciona sin conexión.
  */
 window.Comprobante = (function () {
   'use strict';
@@ -33,15 +33,6 @@ window.Comprobante = (function () {
     return `S/ ${(Number(valor) || 0).toFixed(2)}`;
   }
 
-  function dos(n) {
-    return String(n).padStart(2, '0');
-  }
-
-  function soloDia(fecha) {
-    const d = new Date(fecha);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  }
-
   /** "Miércoles, 4 de noviembre de 2026" */
   function fechaLarga(valor) {
     const texto = new Date(valor).toLocaleDateString('es-PE', {
@@ -67,65 +58,6 @@ window.Comprobante = (function () {
     return { domicilio: e.tipo === 'domicilio', direccion: e.direccion || '', costo: Number(e.costo) || 0 };
   }
 
-  /** Lo que se puede escanear: página de seguimiento, chat del negocio o el pedido. */
-  function contenidoQR(orden) {
-    const cfg = CONFIG.comprobante || {};
-    if (cfg.urlSeguimiento) {
-      return String(cfg.urlSeguimiento).replace('{codigo}', encodeURIComponent(orden.codigo));
-    }
-    const wa = (CONFIG.soporte && CONFIG.soporte.whatsapp) || CONFIG.negocio.telefono || '';
-    const digitos = String(wa).replace(/\D/g, '');
-    if (digitos.length >= 10) {
-      const saludo = `Hola, consulto por mi pedido ${orden.codigo}`;
-      return `https://wa.me/${digitos}?text=${encodeURIComponent(saludo)}`;
-    }
-    return `${CONFIG.negocio.nombre} · Pedido ${orden.codigo} · ${money(orden.total)}`;
-  }
-
-  /* ------------------------------- QR ---------------------------------- */
-
-  let cargandoQR = null;
-
-  function cargarQR() {
-    if (window.qrcode) return Promise.resolve(window.qrcode);
-    if (cargandoQR) return cargandoQR;
-    cargandoQR = new Promise((resolver, rechazar) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
-      script.async = true;
-      const reloj = setTimeout(() => rechazar(new Error('sin QR')), 6000);
-      script.onload = () => { clearTimeout(reloj); resolver(window.qrcode || null); };
-      script.onerror = () => { clearTimeout(reloj); rechazar(new Error('sin QR')); };
-      document.head.appendChild(script);
-    });
-    return cargandoQR;
-  }
-
-  function dibujarQR(ctx, texto, x, y, lado) {
-    if (!window.qrcode || !texto) return false;
-    const qr = window.qrcode(0, 'M');
-    qr.addData(texto);
-    qr.make();
-    const modulos = qr.getModuleCount();
-    const quiet = 4;
-    const ladoModulo = lado / (modulos + quiet * 2);
-    ctx.fillStyle = C.blanco;
-    ctx.fillRect(x, y, lado, lado);
-    ctx.fillStyle = C.dark;
-    for (let f = 0; f < modulos; f += 1) {
-      for (let c = 0; c < modulos; c += 1) {
-        if (qr.isDark(f, c)) {
-          ctx.fillRect(
-            x + (c + quiet) * ladoModulo,
-            y + (f + quiet) * ladoModulo,
-            Math.ceil(ladoModulo),
-            Math.ceil(ladoModulo)
-          );
-        }
-      }
-    }
-    return true;
-  }
 
   /* ----------------------------- Dibujo -------------------------------- */
 
@@ -305,32 +237,13 @@ window.Comprobante = (function () {
       : CONFIG.negocio.direccion;
     escribir(ctx, recortar(ctx, lugar, 800), M + 48, ry, `400 20px ${FUENTE}`, C.suave);
 
-    // Pie con QR
+    // Pie: solo el código, sin QR
     const pieY = recojoY + 214 + 24;
-    const qrLado = 224;
-    const qrX = M;
-    const qrY = pieY + 24;
-    let hayQR = false;
-    try {
-      hayQR = dibujarQR(ctx, contenidoQR(orden), qrX, qrY, qrLado);
-    } catch (error) {
-      hayQR = false;
-    }
-    if (hayQR) {
-      ctx.strokeStyle = C.linea;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(qrX + 0.5, qrY + 0.5, qrLado, qrLado);
-      const tx = qrX + qrLado + 40;
-      escribir(ctx, 'Escanea para consultar', tx, qrY + 92, `700 24px ${FUENTE}`, C.tinta);
-      escribir(ctx, 'tu pedido', tx, qrY + 124, `700 24px ${FUENTE}`, C.tinta);
-      escribir(ctx, orden.codigo, tx, qrY + 162, `400 24px ${FUENTE}`, C.suave);
-      escribir(ctx, 'Conserva este código', tx, qrY + 196, `400 18px ${FUENTE}`, C.suave);
-    } else {
-      escribir(ctx, 'Conserva este código para recoger tus prendas', M, qrY + 80, `700 26px ${FUENTE}`, C.tinta);
-      escribir(ctx, orden.codigo, M, qrY + 124, `400 24px ${FUENTE}`, C.suave);
-    }
+    escribir(ctx, 'CONSERVA ESTE CÓDIGO', M, pieY + 46, `700 16px ${FUENTE}`, C.suave);
+    escribir(ctx, orden.codigo, M, pieY + 108, `700 46px ${FUENTE}`, C.tinta);
+    escribir(ctx, 'Preséntalo al recoger tus prendas.', M, pieY + 144, `400 21px ${FUENTE}`, C.suave);
 
-    const pieTexto = pieY + 292;
+    const pieTexto = pieY + 196;
     ctx.strokeStyle = C.linea;
     ctx.beginPath();
     ctx.moveTo(M, pieTexto);
@@ -362,7 +275,6 @@ window.Comprobante = (function () {
 
   /** Devuelve { canvas, blob, url, archivo }. */
   async function generar(orden, tipo) {
-    await cargarQR().catch(() => null);
     const canvas = dibujar(orden, tipo || 'registro');
     const blob = await new Promise((resolver, rechazar) => {
       canvas.toBlob((valor) => (valor ? resolver(valor) : rechazar(new Error('PNG'))), 'image/png');
@@ -375,5 +287,5 @@ window.Comprobante = (function () {
     };
   }
 
-  return { generar, texto, money, contenidoQR, fechaLarga, horaCorta, dos };
+  return { generar, texto, money, fechaLarga, horaCorta };
 })();
