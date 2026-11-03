@@ -70,6 +70,11 @@ const CONFIG = {
   },
 
   /* Datos de contacto que se muestran en el panel de soporte. */
+  /* Comprobante en imagen que recibe el cliente por WhatsApp. */
+  comprobante: {
+    // Página pública de seguimiento: 'https://midominio.pe/pedido?c={codigo}'.
+    urlSeguimiento: ''
+  },
   soporte: {
     correo: '',
     whatsapp: '',

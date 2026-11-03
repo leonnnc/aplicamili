@@ -28,6 +28,7 @@
     clienteCodigo: '',
     clienteExistente: null,
     ordenActual: null,
+    comprobante: null,
     recojoManual: false,
     offsetSemana: 0,
     temporizador: null,
@@ -1905,10 +1906,13 @@
     renderClientes();
     renderResumen();
     renderBanner();
-    abrirModalExito(orden);
 
-    if (cierre === 'whatsapp') abrirWhatsApp(orden);
-    else if (cierre === 'imprimir') imprimirOrden(orden);
+    if (cierre === 'whatsapp') {
+      enviarComprobante(orden, 'registro');
+    } else {
+      abrirModalExito(orden);
+      if (cierre === 'imprimir') imprimirOrden(orden);
+    }
   }
 
   function limpiarFormulario() {
@@ -2042,6 +2046,114 @@
     return orden.estado === 'listo' || orden.estado === 'almacen' ? 'listo' : 'registro';
   }
 
+  /* ---------------------- Comprobante en imagen ------------------------- */
+
+  /**
+   * Genera el comprobante y lo comparte. En el celular abre la hoja de
+   * compartir de WhatsApp con la imagen adjunta; en la computadora muestra
+   * la vista previa para copiarla o descargarla.
+   */
+  async function enviarComprobante(orden, tipo = 'registro') {
+    if (!orden) return;
+    if (!window.Comprobante) {
+      toast('No se pudo cargar el generador de comprobantes');
+      return;
+    }
+
+    let salida;
+    try {
+      salida = await Comprobante.generar(orden, tipo);
+    } catch (error) {
+      toast('No se pudo generar la imagen del comprobante');
+      return;
+    }
+
+    const archivo = new File([salida.blob], salida.archivo, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      try {
+        await navigator.share({ files: [archivo], text: Comprobante.texto(orden, tipo) });
+        liberarComprobanteAnterior();
+        estado.comprobante = null;
+        return;
+      } catch (error) {
+        if (error && error.name === 'AbortError') {
+          liberarComprobanteAnterior();
+          estado.comprobante = null;
+          return;
+        }
+        // Si el compartir falla, se sigue con la vista previa.
+      }
+    }
+
+    abrirModalComprobante(orden, tipo, salida);
+  }
+
+  function liberarComprobanteAnterior() {
+    if (estado.comprobante && estado.comprobante.url) {
+      URL.revokeObjectURL(estado.comprobante.url);
+    }
+  }
+
+  function abrirModalComprobante(orden, tipo, salida) {
+    liberarComprobanteAnterior();
+    estado.comprobante = { ...salida, ordenId: orden.id, tipo };
+
+    const telefono = normalizarTelefono(orden.cliente.telefono);
+    const enCelular = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    const ayuda = enCelular
+      ? 'Si el teléfono no abrió WhatsApp solo, descarga la imagen y adjúntala en el chat.'
+      : 'Copia la imagen y pégala en el chat de WhatsApp con Ctrl + V, o descárgala y arrástrala.';
+
+    abrirModal(`
+      <p class="eyebrow">Comprobante listo</p>
+      <h2>${esc(orden.cliente.nombre)} · ${esc(orden.codigo)}</h2>
+      <p class="muted small">${esc(Comprobante.fechaLarga(orden.recojoEn))} desde las ${esc(Comprobante.horaCorta(orden.recojoEn))} · Total ${money(orden.total)}</p>
+
+      <div class="comprobante-vista">
+        <img src="${salida.url}" alt="Comprobante del servicio ${esc(orden.codigo)}" />
+      </div>
+
+      <p class="hint">${esc(ayuda)}</p>
+
+      <div class="modal-acciones">
+        <button class="btn btn-primary" type="button" data-accion="copiar-imagen">Copiar imagen</button>
+        <button class="btn btn-outline" type="button" data-accion="descargar-comprobante">Descargar PNG</button>
+        ${telefono.length >= 10 ? `<button class="btn btn-outline" type="button" data-accion="abrir-wa">Abrir el chat</button>` : ''}
+      </div>
+
+      <div class="modal-acciones" style="margin-top:10px">
+        <button class="btn btn-ghost" type="button" data-accion="imprimir" data-id="${esc(orden.id)}">Imprimir comprobante</button>
+        <button class="btn btn-ghost" type="button" data-accion="cerrar">Cerrar</button>
+      </div>
+    `);
+  }
+
+  async function copiarImagenComprobante() {
+    const actual = estado.comprobante;
+    if (!actual || !navigator.clipboard || !window.ClipboardItem) {
+      toast('Este navegador no permite copiar imágenes; usa Descargar PNG');
+      return;
+    }
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': actual.blob })]);
+      toast('Imagen copiada. Pégala en WhatsApp con Ctrl + V');
+    } catch (error) {
+      toast('No se pudo copiar la imagen; usa Descargar PNG');
+    }
+  }
+
+  function descargarComprobante() {
+    const actual = estado.comprobante;
+    if (!actual) return;
+    const enlace = document.createElement('a');
+    enlace.href = actual.url;
+    enlace.download = actual.archivo;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    toast('Comprobante descargado');
+  }
+
   function abrirWhatsApp(orden, tipo = 'registro') {
     if (!orden) return;
     const telefono = normalizarTelefono(orden.cliente.telefono);
@@ -2139,6 +2251,8 @@
     $('#modal').setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-abierto');
     $('#modalContenido').innerHTML = '';
+    liberarComprobanteAnterior();
+    estado.comprobante = null;
   }
 
   function abrirModalExito(orden) {
@@ -2167,7 +2281,7 @@
       </div>
 
       <div class="modal-acciones">
-        <a class="btn btn-primary" href="${urlWhatsApp(orden)}" target="_blank" rel="noopener">Enviar aviso por WhatsApp</a>
+        <button class="btn btn-primary" type="button" data-accion="comprobante" data-id="${orden.id}">Enviar comprobante</button>
         <button class="btn btn-outline" type="button" data-accion="copiar" data-id="${orden.id}">Copiar cuadro del mensaje</button>
         <button class="btn btn-outline" type="button" data-accion="imprimir" data-id="${orden.id}">Imprimir comprobante</button>
       </div>
@@ -2270,7 +2384,7 @@
       </div>
 
       <div class="modal-acciones" style="margin-top:10px">
-        <a class="btn btn-outline" href="${urlWhatsApp(orden, tipoAvisoSugerido(orden))}" target="_blank" rel="noopener">${orden.estado === 'listo' ? 'Reenviar aviso de recojo' : 'Enviar aviso por WhatsApp'}</a>
+        <button class="btn btn-outline" type="button" data-accion="comprobante" data-id="${orden.id}">${orden.estado === 'listo' ? 'Reenviar comprobante' : 'Enviar comprobante'}</button>
         <button class="btn btn-outline" type="button" data-accion="imprimir" data-id="${orden.id}">Imprimir comprobante</button>
       </div>
     `);
@@ -2519,7 +2633,7 @@
     renderClientes();
     if (abrirFicha) abrirDetalle(id);
     toast('Servicio listo. Aviso al cliente preparado.');
-    if (enviar) abrirWhatsApp(actualizada, 'listo');
+    if (enviar) enviarComprobante(actualizada, 'listo');
   }
 
   function confirmarSalida(id) {
@@ -2681,7 +2795,7 @@
                   <span class="${pendiente ? 'aviso-pend' : ''}">${rec ? (pendiente ? 'Recordatorio pendiente: ' : 'Próximo recordatorio: ') + esc(fechaAviso(rec).corta) : 'Sin recordatorio programado'}</span>
                 </div>
                 <div class="aviso-acciones">
-                  <a class="btn btn-sm btn-primary" href="${urlWhatsApp(o, 'recordatorio')}" target="_blank" rel="noopener" data-aviso="${o.id}">Reenviar</a>
+                  <button class="btn btn-sm btn-primary" type="button" data-accion="comprobante" data-id="${o.id}">Reenviar</button>
                   <button class="btn btn-sm btn-outline" type="button" data-almacen="${o.id}">Almacén</button>
                   <button class="btn btn-sm btn-outline" type="button" data-salida="${o.id}">Recogido</button>
                 </div>
@@ -3544,7 +3658,7 @@
       if (listo) marcarListo(listo.dataset.listo, true, false);
       if (wa) {
         const orden = Store.getOrden(wa.dataset.wa);
-        abrirWhatsApp(orden, tipoAvisoSugerido(orden));
+        enviarComprobante(orden, tipoAvisoSugerido(orden));
       }
       if (salida) confirmarSalida(salida.dataset.salida);
       if (imprimir) imprimirOrden(Store.getOrden(imprimir.dataset.print));
@@ -3570,7 +3684,7 @@
 
     $('#recojosHoy').addEventListener('click', (evento) => {
       const boton = evento.target.closest('[data-wa]');
-      if (boton) abrirWhatsApp(Store.getOrden(boton.dataset.wa), 'listo');
+      if (boton) enviarComprobante(Store.getOrden(boton.dataset.wa), 'listo');
     });
 
     // Modal
@@ -3660,7 +3774,24 @@
       if (accion) {
         const id = accion.dataset.id;
         const orden = id ? Store.getOrden(id) : null;
-        if (accion.dataset.accion === 'whatsapp' && orden) abrirWhatsApp(orden);
+        if (accion.dataset.accion === 'whatsapp' && orden) enviarComprobante(orden, tipoAvisoSugerido(orden));
+        if (accion.dataset.accion === 'comprobante' && orden) {
+          enviarComprobante(orden, tipoAvisoSugerido(orden));
+          return;
+        }
+        if (accion.dataset.accion === 'copiar-imagen') {
+          copiarImagenComprobante();
+          return;
+        }
+        if (accion.dataset.accion === 'descargar-comprobante') {
+          descargarComprobante();
+          return;
+        }
+        if (accion.dataset.accion === 'abrir-wa' && estado.comprobante && orden) {
+          window.open(`https://wa.me/${normalizarTelefono(orden.cliente.telefono)}`, '_blank', 'noopener');
+          toast('Pega la imagen en el chat con Ctrl + V');
+          return;
+        }
         if (accion.dataset.accion === 'copiar' && orden) copiarMensaje(orden);
         if (accion.dataset.accion === 'imprimir' && orden) imprimirOrden(orden);
         if (accion.dataset.accion === 'respaldo') exportarRespaldo();
