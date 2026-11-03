@@ -1053,7 +1053,7 @@
     }
 
     if (existente && servicio.tipo === 'peso') {
-      const input = $(`.item[data-key="${existente.key}"] input[data-campo="cantidad"]`) || $('#pesoRecepcion');
+      const input = $(`.item[data-key="${existente.key}"] input[data-campo="cantidad"]`);
       if (input) {
         input.focus();
         input.select();
@@ -1062,20 +1062,12 @@
       return;
     }
 
-    /* La primera prenda hereda lo que se midió en recepción (peso de la
-       balanza o el conteo); las siguientes arrancan en su mínimo. */
-    const primero = estado.items.length === 0;
-    // Los kilos de un servicio por peso salen de la balanza, no del mínimo.
-    let cantidad = servicio.tipo === 'peso' ? 0 : 1;
-    if (primero) {
-      if (servicio.tipo === 'peso' && parseNum(estado.recepcion.peso) > 0) cantidad = parseNum(estado.recepcion.peso);
-      if (servicio.tipo === 'unidad' && parseNum(estado.recepcion.unidades) > 0) {
-        cantidad = Math.max(1, Math.round(parseNum(estado.recepcion.unidades)));
-      }
-    }
+    // El peso se escribe en la propia fila: arranca vacío, no con el mínimo.
+    const cantidad = servicio.tipo === 'peso' ? 0 : 1;
+    const clave = uid('it');
 
     estado.items.push({
-      key: uid('it'),
+      key: clave,
       servicioId: servicio.id,
       nombre: servicio.nombre,
       tipo: servicio.tipo,
@@ -1087,6 +1079,14 @@
 
     renderItems();
     refrescarResumen();
+    // Se deja el cursor en los kilos para escribir el peso de inmediato.
+    if (servicio.tipo === 'peso') {
+      const campo = $(`.item[data-key="${clave}"] input[data-campo="cantidad"]`);
+      if (campo) {
+        campo.focus();
+        campo.select();
+      }
+    }
     toast(`${servicio.nombre} agregado`);
   }
 
@@ -1106,12 +1106,6 @@
     }
     $('#itemsVacio').classList.add('oculto');
 
-    /* Con un solo servicio por peso, los kilos se escriben una vez: en la
-       balanza. Solo al repartir entre varios servicios aparece el kg de fila. */
-    const filasPeso = estado.items.filter((i) => i.tipo === 'peso').length;
-    // En modo conteo la balanza no se ve, así que el kg de la fila vuelve a ser editable.
-    const repartoPeso = filasPeso > 1 || estado.recepcion.modo !== 'peso';
-
     contenedor.innerHTML = estado.items
       .map((item) => {
         const esPeso = item.tipo === 'peso';
@@ -1126,12 +1120,8 @@
             <span class="tag ${esPeso ? 'peso' : ''}">${esPeso ? 'Por peso' : 'Por unidad'}</span>
           </div>
           <div class="item-cant">
-            <label for="cant-${item.key}">${esPeso ? `Peso (kg)` : `Cantidad (${esc(item.unidad)})`}</label>
-            ${
-              esPeso && !repartoPeso
-                ? `<span class="item-kg" data-kg>${cantidad.toFixed(2)}<small>kg</small></span>`
-                : `<input id="cant-${item.key}" type="number" data-campo="cantidad" value="${item.cantidad}" min="0" step="${esPeso ? '0.01' : '1'}" inputmode="decimal" />`
-            }
+            <label for="cant-${item.key}">${esPeso ? 'Peso (kg)' : `Cantidad (${esc(item.unidad)})`}</label>
+            <input id="cant-${item.key}" type="number" data-campo="cantidad" value="${item.cantidad}" min="0" step="${esPeso ? '0.01' : '1'}" inputmode="decimal" placeholder="${esPeso ? '0.00' : '1'}" />
           </div>
           <div class="item-tarifa">
             <label for="tar-${item.key}">${esPeso ? 'S/ por kg' : 'Precio'}</label>
@@ -1143,36 +1133,6 @@
         </div>`;
       })
       .join('');
-
-    sincronizarPeso();
-  }
-
-  /** Una sola fuente para el peso: la balanza, o la suma si hay reparto. */
-  function sincronizarPeso() {
-    const filas = estado.items.filter((i) => i.tipo === 'peso');
-    const campo = $('#pesoRecepcion');
-    if (!campo) return;
-
-    const reparto = filas.length > 1 || estado.recepcion.modo !== 'peso';
-    campo.readOnly = reparto;
-    campo.classList.toggle('solo-lectura', reparto);
-
-    if (reparto) {
-      const total = redondear(filas.reduce((suma, f) => suma + Math.max(0, parseNum(f.cantidad)), 0));
-      estado.recepcion.peso = total > 0 ? String(total) : '';
-      campo.value = total > 0 ? String(total) : '';
-    } else if (filas.length && document.activeElement !== campo) {
-      const unico = Math.max(0, parseNum(filas[0].cantidad));
-      estado.recepcion.peso = unico > 0 ? String(redondear(unico)) : '';
-      campo.value = unico > 0 ? String(redondear(unico)) : '';
-    }
-
-    const nota = $('#pesoNota');
-    if (nota) {
-      nota.textContent = reparto
-        ? 'Suma de los servicios por peso. Escribe los kilos de cada fila.'
-        : 'Se escribe una sola vez y se aplica al servicio por peso.';
-    }
   }
 
   function refrescarSubtotales() {
@@ -1618,27 +1578,24 @@
       return true;
     }
 
-    /* Paso 2 = recepción y prendas: se exige la medida y al menos un servicio. */
+    /* Paso 2 = recepción y prendas: cada renglón necesita su peso o su cantidad. */
     if (n === 2) {
-      if (estado.recepcion.modo === 'peso') {
-        if (!(parseNum($('#pesoRecepcion').value) > 0)) {
-          marcarInvalido('#pesoRecepcion');
-          toast('Escribe el peso que marcó la balanza');
-          return false;
-        }
-      } else if (!(Math.round(parseNum($('#conteoRecepcion').value)) >= 1)) {
-        marcarInvalido('#conteoRecepcion');
-        toast('Escribe cuántas prendas contaste');
-        return false;
-      }
-
       if (!estado.items.length) {
         toast('Agrega al menos un servicio del catálogo');
         return false;
       }
       const pesoSinDato = estado.items.find((i) => i.tipo === 'peso' && parseNum(i.cantidad) <= 0);
       if (pesoSinDato) {
-        toast(`Ingresa el peso de «${pesoSinDato.nombre}»`);
+        const campo = $(`.item[data-key="${pesoSinDato.key}"] input[data-campo="cantidad"]`);
+        if (campo) campo.focus();
+        toast(`Escribe el peso de «${pesoSinDato.nombre}»`);
+        return false;
+      }
+      const prendaSinDato = estado.items.find((i) => i.tipo !== 'peso' && parseNum(i.cantidad) < 1);
+      if (prendaSinDato) {
+        const campo = $(`.item[data-key="${prendaSinDato.key}"] input[data-campo="cantidad"]`);
+        if (campo) campo.focus();
+        toast(`Escribe cuántas prendas van en «${prendaSinDato.nombre}»`);
         return false;
       }
       return true;
@@ -1667,24 +1624,7 @@
     return true;
   }
 
-  /**
-   * La balanza manda sobre el primer servicio por peso: al cambiar el peso
-   * recibido se actualiza esa fila, salvo que el operador haya escrito un kg
-   * distinto a mano en ella.
-   */
-  function aplicarPesoRecepcion() {
-    const filas = estado.items.filter((item) => item.tipo === 'peso');
-    // Con reparto entre varios servicios, manda la suma de las filas.
-    if (filas.length !== 1) return;
-    const peso = Math.max(0, redondear(parseNum(estado.recepcion.peso)));
-    if (redondear(parseNum(filas[0].cantidad)) === peso) return;
-    filas[0].cantidad = peso;
-    renderItems();
-    refrescarSubtotales();
-    refrescarResumen();
-  }
-
-  /** Recepción: por peso (balanza) o por conteo (prendas). */
+  /** Recepción: por peso (kilos) o por conteo (prendas). */
   function seleccionarModoRecepcion(modo) {
     estado.recepcion.modo = modo === 'unidad' ? 'unidad' : 'peso';
     $$('#recepcionModos .modo-card').forEach((boton) => {
@@ -1692,11 +1632,7 @@
       boton.classList.toggle('is-active', activo);
       boton.setAttribute('aria-checked', String(activo));
     });
-    $('#campoPesoRecepcion').classList.toggle('oculto', estado.recepcion.modo !== 'peso');
-    $('#campoConteoRecepcion').classList.toggle('oculto', estado.recepcion.modo !== 'unidad');
     renderCatalogo();
-    // Con la balanza oculta, el kg de la fila vuelve a editarse a mano.
-    renderItems();
   }
 
   /** Proceso vigente: el elegido a mano o el que se deduce del día de recojo. */
@@ -1994,11 +1930,9 @@
     $('#cliHint').classList.remove('ok');
 
     // Vuelta al paso 1 con la recepción en blanco.
-    estado.recepcion = { modo: 'peso', peso: '', unidades: '' };
+      estado.recepcion = { modo: 'peso' };
     estado.procesoSel = null;
     estado.verTodos = false;
-    if ($('#pesoRecepcion')) $('#pesoRecepcion').value = '';
-    if ($('#conteoRecepcion')) $('#conteoRecepcion').value = '';
     seleccionarModoRecepcion('peso');
     renderProcesos();
     pintarPaso(1);
@@ -3450,8 +3384,6 @@
       const item = estado.items.find((i) => i.key === fila.dataset.key);
       if (!item) return;
       item[campo.dataset.campo] = campo.value;
-      // Al repartir entre varios servicios, el total de la balanza es la suma.
-      if (campo.dataset.campo === 'cantidad') sincronizarPeso();
       refrescarSubtotales();
       refrescarResumen();
       const nota = fila.querySelector('.item-note');
@@ -3506,13 +3438,6 @@
     $('#recepcionModos').addEventListener('click', (evento) => {
       const boton = evento.target.closest('[data-modo]');
       if (boton) seleccionarModoRecepcion(boton.dataset.modo);
-    });
-    $('#pesoRecepcion').addEventListener('input', (evento) => {
-      estado.recepcion.peso = evento.target.value;
-      aplicarPesoRecepcion();
-    });
-    $('#conteoRecepcion').addEventListener('input', (evento) => {
-      estado.recepcion.unidades = evento.target.value;
     });
     $('#btnVerTodos').addEventListener('click', () => {
       estado.verTodos = !estado.verTodos;

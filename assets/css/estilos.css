@@ -2046,23 +2046,6 @@ details.preview[open] summary::before { content: "▾ "; }
 .recepcion-modos-barra .modo-card strong { font-size: 13px; }
 .recepcion-modos-barra .modo-card span { font-size: 11.5px; }
 
-/* La balanza cierra el paso, justo antes de continuar. */
-.recepcion-medida-bloque {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(200px, 270px);
-  gap: 12px 20px;
-  align-items: center;
-  margin-top: 18px;
-  padding: 13px 16px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--brand-softer);
-}
-.recepcion-medida-bloque .field { gap: 4px; }
-.recepcion-medida-bloque .hint { margin-top: 0; }
-.medida-texto { display: flex; flex-direction: column; gap: 2px; }
-.medida-texto strong { font-size: 13.5px; }
-
 /* Lo elegido se queda dentro del mismo bloque: sin línea ni subtítulo suelto. */
 .paso-panel[data-paso="2"] .items-head {
   margin: 16px 0 6px;
@@ -2074,8 +2057,6 @@ details.preview[open] summary::before { content: "▾ "; }
 @media (max-width: 720px) {
   .recepcion-modos-barra { gap: 8px; }
   .recepcion-modos-barra .recepcion-modos { flex-direction: column; }
-  .recepcion-medida-bloque { padding: 12px; grid-template-columns: minmax(0, 1fr); }
-  .medida-texto { gap: 0; }
   /* En vertical la acción principal queda arriba. */
   .paso-nav { flex-direction: column; }
 }
@@ -2513,19 +2494,3 @@ textarea.solo-lectura {
   cursor: not-allowed;
 }
 
-/* Peso de la fila cuando la balanza es la única entrada. */
-.item-kg {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 3px;
-  min-height: 34px;
-  padding: 7px 9px;
-  border-radius: 9px;
-  background: #f4f8f7;
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.item-kg small { font-size: 10px; font-weight: 600; color: var(--muted); }
