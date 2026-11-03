@@ -69,6 +69,11 @@ const CONFIG = {
     correosAdmin: []
   },
 
+  /* Impresión de tickets: ancho del papel de la impresora térmica (58 u 80 mm). */
+  impresion: {
+    ancho: 80
+  },
+
   /* Datos de contacto que se muestran en el panel de soporte. */
   soporte: {
     correo: '',

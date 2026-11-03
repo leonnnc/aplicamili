@@ -2226,8 +2226,12 @@
   }
 
   function imprimirOrden(orden) {
-    $('#ticket').innerHTML = ticketHTML(orden);
-    window.print();
+    // Impresión térmica: 58 o 80 mm según lo elegido en Datos.
+    if (!window.Ticket) {
+      toast('No se pudo cargar el módulo de impresión');
+      return;
+    }
+    Ticket.imprimir(ticketHTML(orden));
   }
 
   /* -------------------------------- Modal ------------------------------- */
@@ -2488,6 +2492,21 @@
       </div>
 
       <input type="file" id="archivoRespaldo" accept="application/json,.json" hidden />
+
+      <div class="datos-impresion">
+        <p class="eyebrow">Impresión de tickets</p>
+        <p class="muted small">Elige el ancho del papel de la impresora térmica.</p>
+        <div class="chips" id="anchoTicket" role="group" aria-label="Ancho del ticket">
+          ${[58, 80]
+            .map(
+              (mm) =>
+                `<button class="chip${Ticket.leerPreferencia().ancho === mm ? ' is-active' : ''}" type="button" data-ancho="${mm}">${mm} mm</button>`
+            )
+            .join('')}
+        </div>
+        <button class="btn btn-outline btn-sm" type="button" data-accion="prueba-ticket" style="margin-top:10px">Imprimir ticket de prueba</button>
+        <p class="hint">El ticket sale con el ancho elegido. Si el texto se corta, cambia al otro tamaño.</p>
+      </div>
 
       <p class="hint" style="margin-top:14px">Los datos viven en este navegador (localStorage). Descarga un respaldo antes de cambiar de equipo o limpiar el navegador.</p>
       <button class="btn btn-ghost btn-block" type="button" data-accion="cerrar" style="margin-top:10px">Cerrar</button>
@@ -3695,6 +3714,17 @@
         return;
       }
 
+      // Ancho del papel de la impresora térmica.
+      const ancho = evento.target.closest('#anchoTicket [data-ancho]');
+      if (ancho) {
+        Ticket.guardar({ ancho: Number(ancho.dataset.ancho) });
+        $$('#anchoTicket [data-ancho]').forEach((boton) => {
+          boton.classList.toggle('is-active', boton === ancho);
+        });
+        toast(`Ticket configurado para ${ancho.dataset.ancho} mm`);
+        return;
+      }
+
       const aprobar = evento.target.closest('[data-aprobar]');
       if (aprobar) {
         aplicarSolicitud(aprobar.dataset.aprobar);
@@ -3797,6 +3827,10 @@
         if (accion.dataset.accion === 'respaldo') exportarRespaldo();
         if (accion.dataset.accion === 'csv') exportarCSV();
         if (accion.dataset.accion === 'importar') $('#archivoRespaldo').click();
+        if (accion.dataset.accion === 'prueba-ticket') {
+          Ticket.prueba();
+          return;
+        }
       }
       const cambio = evento.target.closest('[data-estado]');
       if (cambio) cambiarEstado(cambio.dataset.id, cambio.dataset.estado);
