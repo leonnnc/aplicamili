@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
   <title>Lavandería Mili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261102g" />
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261102i" />
 </head>
 <body>
 
@@ -280,7 +280,7 @@
                 <div class="field" id="campoPesoRecepcion">
                   <label for="pesoRecepcion">Peso en la balanza (kg) <span class="req">*</span></label>
                   <input id="pesoRecepcion" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-                  <p class="hint">Mueve los kilos del servicio por peso; puedes ajustar fila por fila.</p>
+                  <p class="hint" id="pesoNota">Se escribe una sola vez y se aplica al servicio por peso.</p>
                 </div>
                 <div class="field oculto" id="campoConteoRecepcion">
                   <label for="conteoRecepcion">Prendas contadas <span class="req">*</span></label>
@@ -679,16 +679,16 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   <div id="ticket" class="ticket-print" aria-hidden="true"></div>
 
-  <script src="assets/js/config.js?v=20261102g"></script>
-  <script src="assets/js/firebase-config.js?v=20261102g"></script>
-  <script src="assets/js/store.js?v=20261102g"></script>
+  <script src="assets/js/config.js?v=20261102i"></script>
+  <script src="assets/js/firebase-config.js?v=20261102i"></script>
+  <script src="assets/js/store.js?v=20261102i"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261102g"></script>
-  <script defer src="assets/js/app.js?v=20261102g"></script>
+  <script defer src="assets/js/sync.js?v=20261102i"></script>
+  <script defer src="assets/js/app.js?v=20261102i"></script>
 </body>
 </html>

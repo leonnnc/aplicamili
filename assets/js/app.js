@@ -1053,7 +1053,7 @@
     }
 
     if (existente && servicio.tipo === 'peso') {
-      const input = $(`.item[data-key="${existente.key}"] input[data-campo="cantidad"]`);
+      const input = $(`.item[data-key="${existente.key}"] input[data-campo="cantidad"]`) || $('#pesoRecepcion');
       if (input) {
         input.focus();
         input.select();
@@ -1065,7 +1065,8 @@
     /* La primera prenda hereda lo que se midió en recepción (peso de la
        balanza o el conteo); las siguientes arrancan en su mínimo. */
     const primero = estado.items.length === 0;
-    let cantidad = servicio.tipo === 'peso' ? servicio.minPeso || 0 : 1;
+    // Los kilos de un servicio por peso salen de la balanza, no del mínimo.
+    let cantidad = servicio.tipo === 'peso' ? 0 : 1;
     if (primero) {
       if (servicio.tipo === 'peso' && parseNum(estado.recepcion.peso) > 0) cantidad = parseNum(estado.recepcion.peso);
       if (servicio.tipo === 'unidad' && parseNum(estado.recepcion.unidades) > 0) {
@@ -1081,9 +1082,7 @@
       unidad: servicio.unidad,
       cantidad,
       tarifa: tarifaDe(servicio),
-      minPeso: servicio.minPeso || 0,
-      // Si el operador escribe un kg a mano, la balanza deja de mandar en esa fila.
-      manual: false
+      minPeso: servicio.minPeso || 0
     });
 
     renderItems();
@@ -1107,6 +1106,12 @@
     }
     $('#itemsVacio').classList.add('oculto');
 
+    /* Con un solo servicio por peso, los kilos se escriben una vez: en la
+       balanza. Solo al repartir entre varios servicios aparece el kg de fila. */
+    const filasPeso = estado.items.filter((i) => i.tipo === 'peso').length;
+    // En modo conteo la balanza no se ve, así que el kg de la fila vuelve a ser editable.
+    const repartoPeso = filasPeso > 1 || estado.recepcion.modo !== 'peso';
+
     contenedor.innerHTML = estado.items
       .map((item) => {
         const esPeso = item.tipo === 'peso';
@@ -1121,8 +1126,12 @@
             <span class="tag ${esPeso ? 'peso' : ''}">${esPeso ? 'Por peso' : 'Por unidad'}</span>
           </div>
           <div class="item-cant">
-            <label for="cant-${item.key}">${esPeso ? 'Peso (kg)' : `Cantidad (${esc(item.unidad)})`}</label>
-            <input id="cant-${item.key}" type="number" data-campo="cantidad" value="${item.cantidad}" min="0" step="${esPeso ? '0.01' : '1'}" inputmode="decimal" />
+            <label for="cant-${item.key}">${esPeso ? `Peso (kg)` : `Cantidad (${esc(item.unidad)})`}</label>
+            ${
+              esPeso && !repartoPeso
+                ? `<span class="item-kg" data-kg>${cantidad.toFixed(2)}<small>kg</small></span>`
+                : `<input id="cant-${item.key}" type="number" data-campo="cantidad" value="${item.cantidad}" min="0" step="${esPeso ? '0.01' : '1'}" inputmode="decimal" />`
+            }
           </div>
           <div class="item-tarifa">
             <label for="tar-${item.key}">${esPeso ? 'S/ por kg' : 'Precio'}</label>
@@ -1134,6 +1143,36 @@
         </div>`;
       })
       .join('');
+
+    sincronizarPeso();
+  }
+
+  /** Una sola fuente para el peso: la balanza, o la suma si hay reparto. */
+  function sincronizarPeso() {
+    const filas = estado.items.filter((i) => i.tipo === 'peso');
+    const campo = $('#pesoRecepcion');
+    if (!campo) return;
+
+    const reparto = filas.length > 1 || estado.recepcion.modo !== 'peso';
+    campo.readOnly = reparto;
+    campo.classList.toggle('solo-lectura', reparto);
+
+    if (reparto) {
+      const total = redondear(filas.reduce((suma, f) => suma + Math.max(0, parseNum(f.cantidad)), 0));
+      estado.recepcion.peso = total > 0 ? String(total) : '';
+      campo.value = total > 0 ? String(total) : '';
+    } else if (filas.length && document.activeElement !== campo) {
+      const unico = Math.max(0, parseNum(filas[0].cantidad));
+      estado.recepcion.peso = unico > 0 ? String(redondear(unico)) : '';
+      campo.value = unico > 0 ? String(redondear(unico)) : '';
+    }
+
+    const nota = $('#pesoNota');
+    if (nota) {
+      nota.textContent = reparto
+        ? 'Suma de los servicios por peso. Escribe los kilos de cada fila.'
+        : 'Se escribe una sola vez y se aplica al servicio por peso.';
+    }
   }
 
   function refrescarSubtotales() {
@@ -1634,13 +1673,14 @@
    * distinto a mano en ella.
    */
   function aplicarPesoRecepcion() {
-    const peso = parseNum(estado.recepcion.peso);
-    if (!(peso > 0)) return;
-    const fila = estado.items.find((item) => item.tipo === 'peso' && !item.manual);
-    if (!fila) return;
-    if (Number(fila.cantidad) === peso) return;
-    fila.cantidad = peso;
+    const filas = estado.items.filter((item) => item.tipo === 'peso');
+    // Con reparto entre varios servicios, manda la suma de las filas.
+    if (filas.length !== 1) return;
+    const peso = Math.max(0, redondear(parseNum(estado.recepcion.peso)));
+    if (redondear(parseNum(filas[0].cantidad)) === peso) return;
+    filas[0].cantidad = peso;
     renderItems();
+    refrescarSubtotales();
     refrescarResumen();
   }
 
@@ -1655,6 +1695,8 @@
     $('#campoPesoRecepcion').classList.toggle('oculto', estado.recepcion.modo !== 'peso');
     $('#campoConteoRecepcion').classList.toggle('oculto', estado.recepcion.modo !== 'unidad');
     renderCatalogo();
+    // Con la balanza oculta, el kg de la fila vuelve a editarse a mano.
+    renderItems();
   }
 
   /** Proceso vigente: el elegido a mano o el que se deduce del día de recojo. */
@@ -3408,8 +3450,8 @@
       const item = estado.items.find((i) => i.key === fila.dataset.key);
       if (!item) return;
       item[campo.dataset.campo] = campo.value;
-      // Un kg escrito a mano manda sobre la balanza; si se deja vacío, vuelve a mandar la balanza.
-      if (campo.dataset.campo === 'cantidad') item.manual = String(campo.value).trim() !== '';
+      // Al repartir entre varios servicios, el total de la balanza es la suma.
+      if (campo.dataset.campo === 'cantidad') sincronizarPeso();
       refrescarSubtotales();
       refrescarResumen();
       const nota = fila.querySelector('.item-note');
