@@ -3446,10 +3446,16 @@
       if (ver) { modalTicket(ver.dataset.ver); return; }
       const cerrar = evento.target.closest('[data-cerrar-ticket]');
       if (cerrar) { cerrarTicket(cerrar.dataset.cerrarTicket); return; }
+      const borrar = evento.target.closest('[data-borrar]');
+      if (borrar) { confirmarBorrarUsuario(borrar.dataset.borrar); return; }
       const estadoBoton = evento.target.closest('[data-estado]');
-      if (estadoBoton) {
+      if (estadoBoton && esAdmin()) {
         const cuenta = directorio().find((u) => u.id === estadoBoton.dataset.estado);
         if (!cuenta) return;
+        if (cuenta.activo !== false && /admin/i.test(cuenta.rol) && !adminsRestantes(cuenta.id)) {
+          toast('Debe quedar al menos un administrador activo');
+          return;
+        }
         Store.actualizarUsuario(cuenta.id, { activo: cuenta.activo === false });
         renderPerfiles();
         toast(cuenta.activo === false ? 'Cuenta activada' : 'Cuenta desactivada');
@@ -3975,11 +3981,15 @@
             <div class="usuario-acciones">
               <button class="btn btn-mini" type="button" data-editar="${esc(u.id)}">Editar</button>
               <button class="btn btn-mini" type="button" data-clave="${esc(u.id)}">Clave</button>
-              ${soyYo ? '' : `<button class="btn btn-mini" type="button" data-estado="${esc(u.id)}">${u.activo === false ? 'Activar' : 'Desactivar'}</button>`}
+              ${soyYo ? '' : `<button class="btn btn-mini" type="button" data-estado="${esc(u.id)}">${u.activo === false ? 'Activar' : 'Desactivar'}</button>
+              <button class="btn btn-mini btn-danger-ghost" type="button" data-borrar="${esc(u.id)}">Eliminar</button>`}
             </div>
           </div>`;
         })
         .join('');
+    } else {
+      // Al mostrador no se le deja ni el marcado de las cuentas en el DOM.
+      $('#listaUsuarios').innerHTML = '';
     }
 
     // --- soporte ---
@@ -4011,6 +4021,11 @@
 
   function modalClave(idUsuario) {
     const esPropia = String(idUsuario) === String((buscarUsuario(estado.operador.usuario) || {}).id);
+    // Cambiar la clave de otra persona es cosa de administración.
+    if (!esPropia && !esAdmin()) {
+      toast('Solo el administrador cambia claves de otros');
+      return;
+    }
     const usuario = directorio().find((u) => u.id === idUsuario);
     if (!usuario) {
       toast('No encontré esa cuenta');
@@ -4066,6 +4081,50 @@
     setTimeout(() => { const campo = $('#claveActual') || $('#claveNueva'); if (campo) campo.focus(); }, 100);
   }
 
+  /** Administradores activos que quedarían si se quita a este usuario. */
+  function adminsRestantes(id) {
+    return directorio().filter((u) => u.id !== id && u.activo !== false && /admin/i.test(u.rol)).length;
+  }
+
+  /** Eliminar una cuenta: confirmación aparte y sin dejar el sistema sin admin. */
+  function confirmarBorrarUsuario(id) {
+    if (!esAdmin()) {
+      toast('Solo el administrador gestiona usuarios');
+      return;
+    }
+    const cuenta = directorio().find((u) => u.id === id);
+    if (!cuenta) return;
+
+    const yo = estado.operador || {};
+    if (String(cuenta.usuario).toLowerCase() === String(yo.usuario || '').toLowerCase()) {
+      toast('No puedes eliminar tu propia cuenta');
+      return;
+    }
+    if (/admin/i.test(cuenta.rol) && !adminsRestantes(cuenta.id)) {
+      toast('Debe quedar al menos un administrador activo');
+      return;
+    }
+
+    abrirModal(`
+      <h2>Eliminar usuario</h2>
+      <p class="muted small">Se borra la cuenta de <strong>${esc(cuenta.nombre)}</strong> (${esc(cuenta.usuario)}). Esta acción no se puede deshacer.</p>
+      <p class="muted small">Las órdenes y los clientes que registró se conservan.</p>
+      <div class="modal-acciones">
+        <button class="btn btn-primary btn-danger" type="button" data-confirmar-borrar="${esc(cuenta.id)}">Eliminar cuenta</button>
+        <button class="btn btn-outline" type="button" data-accion="cerrar">Cancelar</button>
+      </div>`);
+
+    $('#modalContenido')
+      .querySelector('[data-confirmar-borrar]')
+      .addEventListener('click', (evento) => {
+        Store.borrarUsuario(cuenta.id);
+        cerrarModal();
+        renderPerfiles();
+        toast('Usuario eliminado');
+        evento.stopPropagation();
+      });
+  }
+
   function modalUsuario(id) {
     if (!esAdmin()) {
       toast('Solo el administrador gestiona usuarios');
@@ -4107,6 +4166,12 @@
       }
       if (!/^[a-z0-9._-]{3,20}$/.test(claveUsuario)) {
         error.textContent = 'El usuario va sin espacios: 3 a 20 letras, números, punto o guion.';
+        return;
+      }
+
+      // Quitar el último administrador dejaría el sistema sin quien lo gestione.
+      if (editando && /admin/i.test(usuario.rol) && !/admin/i.test(rol) && !adminsRestantes(usuario.id)) {
+        error.textContent = 'Debe quedar al menos un administrador activo.';
         return;
       }
 
