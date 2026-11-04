@@ -6,7 +6,7 @@
 const CONFIG = {
   negocio: {
     nombre: 'Lavandería Mili',
-  version: '0.01',
+  version: '0.1',
     rubro: 'Lavandería & tintorería',
     direccion: 'Av. Los Álamos 245, Lima',
     telefono: '+51 987 654 321',
