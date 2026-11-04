@@ -2517,3 +2517,7 @@ textarea.solo-lectura {
 }
 .btn.btn-danger:hover { filter: brightness(0.94); }
 
+
+
+/* Enlace de recuperación en la pantalla de acceso. */.login-recuperar { margin: 10px 0 0; text-align: center; }.login-recuperar .link-btn { font-size: 12.5px; }
+

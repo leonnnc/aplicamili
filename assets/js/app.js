@@ -331,6 +331,9 @@
   /** En modo local el campo vuelve a ser usuario + PIN (solo desarrollo). */
   function ajustarFormularioLogin() {
     const nota = $('#loginModo');
+    const recuperar = $('#loginRecuperar');
+    // La recuperación por correo solo tiene sentido con cuentas de Firebase.
+    if (recuperar) recuperar.hidden = !usaFirebaseAuth();
     if (usaFirebaseAuth()) {
       if (nota) nota.textContent = '';
       return;
@@ -3405,6 +3408,28 @@
 
   function conectarEventos() {
     $('#formLogin').addEventListener('submit', iniciarSesion);
+
+  // Recuperar la contraseña de una cuenta de Firebase desde la pantalla de acceso.
+  $('#btnRecuperar').addEventListener('click', async () => {
+    const correo = $('#usuario').value.trim();
+    const aviso = $('#loginError');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo)) {
+      aviso.textContent = 'Escribe primero tu correo para enviarte el enlace.';
+      $('#usuario').focus();
+      return;
+    }
+    if (!Sync.recuperarClave) {
+      aviso.textContent = 'La recuperación solo funciona con la nube activa.';
+      return;
+    }
+    try {
+      await Sync.recuperarClave(correo);
+      aviso.textContent = '';
+      toast('Te enviamos un correo para restablecer la contraseña');
+    } catch (error) {
+      aviso.textContent = error.message || 'No se pudo enviar el correo.';
+    }
+  });
 
     $('#btnSalir').addEventListener('click', cerrarSesion);
     $('#btnDatos').addEventListener('click', abrirDatos);

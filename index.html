@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f766e" />
   <meta name="description" content="Sistema de control de entradas y salidas para lavandería: clientes, pesaje, precios y avisos de recojo por WhatsApp." />
   <title>Lavandería Mili · Control de lavandería</title>
-  <link rel="stylesheet" href="assets/css/estilos.css?v=20261104c" />
+  <link rel="stylesheet" href="assets/css/estilos.css?v=20261104d" />
 </head>
 <body>
 
@@ -64,6 +64,9 @@
         </div>
         <p class="form-error" id="loginError" role="alert"></p>
         <button class="btn btn-primary btn-block" type="submit">Entrar al sistema</button>
+        <p class="login-recuperar" id="loginRecuperar" hidden>
+          <button class="link-btn" id="btnRecuperar" type="button">¿Olvidaste tu contraseña?</button>
+        </p>
       </form>
 
       <p class="hint center" id="loginModo"></p>
@@ -662,18 +665,18 @@
   <!-- Comprobante para impresión (solo visible al imprimir) -->
   
 
-  <script src="assets/js/config.js?v=20261104c"></script>
-  <script src="assets/js/firebase-config.js?v=20261104c"></script>
-  <script src="assets/js/store.js?v=20261104c"></script>
-<script src="assets/js/comprobante.js?v=20261104c"></script>
-<script src="assets/js/ticket.js?v=20261104c"></script>
+  <script src="assets/js/config.js?v=20261104d"></script>
+  <script src="assets/js/firebase-config.js?v=20261104d"></script>
+  <script src="assets/js/store.js?v=20261104d"></script>
+<script src="assets/js/comprobante.js?v=20261104d"></script>
+<script src="assets/js/ticket.js?v=20261104d"></script>
 
   <!-- SDK de Firebase (compat) — se cargan siempre; si la config está vacía no se usan -->
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script defer src="assets/js/sync.js?v=20261104c"></script>
-  <script defer src="assets/js/app.js?v=20261104c"></script>
+  <script defer src="assets/js/sync.js?v=20261104d"></script>
+  <script defer src="assets/js/app.js?v=20261104d"></script>
 </body>
 </html>

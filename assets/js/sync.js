@@ -329,7 +329,14 @@ const Sync = (() => {
           correo: user.email || "",
           creado: new Date().toISOString()
         };
-        await ref.set(nuevo).catch((error) => console.warn("[sync] no se pudo crear el perfil", error));
+        try {
+            await ref.set(nuevo);
+          } catch (error) {
+            // El token puede tardar un instante en llegar al servidor: se reintenta.
+            console.warn('[sync] primer intento del perfil falló, reintentando', error);
+            await new Promise((listo) => setTimeout(listo, 900));
+            await ref.set(nuevo).catch((otro) => console.warn('[sync] no se pudo crear el perfil', otro));
+          }
         datos = nuevo;
       }
     } catch (error) {
@@ -371,6 +378,19 @@ const Sync = (() => {
     try {
       const credencial = await auth.signInWithEmailAndPassword(String(correo || "").trim(), String(clave || ""));
       return await perfilDe(credencial.user);
+    } catch (error) {
+      const traducido = new Error(traducirError(error));
+      traducido.code = error && error.code;
+      throw traducido;
+    }
+  }
+
+  /** Envía el correo de restablecimiento de contraseña. */
+  async function recuperarClave(correo) {
+    if (!configurado) throw new Error('Firebase no está configurado.');
+    if (!auth) throw new Error('Firebase todavía no terminó de inicializar.');
+    try {
+      await auth.sendPasswordResetEmail(String(correo || '').trim());
     } catch (error) {
       const traducido = new Error(traducirError(error));
       traducido.code = error && error.code;
@@ -479,6 +499,7 @@ const Sync = (() => {
     estado,
     iniciar,
     entrar,
+    recuperarClave,
     salir,
     onSesion: (fn) => { oyentesSesion.add(fn); return () => oyentesSesion.delete(fn); },
     onDatos: (fn) => { oyentesDatos.add(fn); return () => oyentesDatos.delete(fn); },
